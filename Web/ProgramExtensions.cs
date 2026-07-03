@@ -1,5 +1,8 @@
-﻿using Data.Services;
+﻿using Data.Model;
+using Data.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Web
 {
@@ -11,5 +14,31 @@ namespace Web
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
             return services;
         }
+
+        public static  IServiceCollection AddIdentity(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddDefaultIdentity<AppUser>(options =>
+            {
+                options.SignIn.RequireConfirmedAccount = true;
+            })
+                .AddRoles<IdentityRole>()
+                .AddEntityFrameworkStores<AppDbContext>();
+
+            //Add google 0Auth
+            services
+                .AddAuthentication()
+                .AddGoogle(options =>
+                {
+                    options.ClientId = configuration["0Auth:ClientId"]!;
+                    options.ClientSecret = configuration["0Auth:ClientSecret"]!;
+                });
+
+            //Seed roles
+
+
+
+            return services;
+        }
+
     }
 }
