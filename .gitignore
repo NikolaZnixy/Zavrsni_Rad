@@ -486,3 +486,5 @@ $RECYCLE.BIN/
 
 #All secret key files
 *.pem
+Web/app.db-wal
+Web/app.db-shm
