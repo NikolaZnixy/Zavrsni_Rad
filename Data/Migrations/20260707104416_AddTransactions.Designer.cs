@@ -3,6 +3,7 @@ using System;
 using Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707104416_AddTransactions")]
+    partial class AddTransactions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.28");
@@ -108,9 +111,7 @@ namespace Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LinkedBankAccountId", "ExternalTransactionId")
-                        .IsUnique()
-                        .HasFilter("\"ExternalTransactionId\" IS NOT NULL");
+                    b.HasIndex("LinkedBankAccountId");
 
                     b.ToTable("BankAccountTransactions");
                 });
@@ -141,9 +142,6 @@ namespace Data.Migrations
 
                     b.Property<string>("Iban")
                         .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("LastSyncedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("LinkedAt")

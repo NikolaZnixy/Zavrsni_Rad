@@ -11,5 +11,6 @@
         public string Iban { get; }
         public DateTimeOffset ConsentValidUntil { get; }
         public DateTimeOffset LinkedAt { get; }
+        public DateTimeOffset? LastSyncedAt { get; }
     }
 }

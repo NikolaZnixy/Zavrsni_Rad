@@ -73,7 +73,11 @@ namespace Data.Services
 
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<TransactionsResponse>())!;
+
+            var rawJson = await response.Content.ReadAsStringAsync();
+            Console.WriteLine(rawJson);
+
+            return System.Text.Json.JsonSerializer.Deserialize<TransactionsResponse>(rawJson)!;
         }
 
 

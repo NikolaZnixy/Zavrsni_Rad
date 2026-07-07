@@ -1,9 +1,11 @@
 using Data.Model;
+using Data.Model.Data;
 using Data.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Web.Controllers.Api
@@ -73,9 +75,9 @@ namespace Web.Controllers.Api
             return RedirectToAction("Accounts", "Transactions");
         }
 
-        [HttpGet("transactions/{linkedAccountId}")]
+        [HttpPost("transactions/{linkedAccountId}/sync")]
         [Authorize]
-        public async Task<IActionResult> GetTransactions(Guid linkedAccountId)
+        public async Task<IActionResult> SyncTransactions(Guid linkedAccountId)
         {
             var userId = _userManager.GetUserId(User)!;
             var account = await _db.LinkedBankAccounts
@@ -84,8 +86,47 @@ namespace Web.Controllers.Api
             if (account is null)
                 return NotFound();
 
-            var transactions = await _client.GetTransactionsAsync(account.EnableBankingAccountId);
-            return Ok(transactions);
+            var fetched = await _client.GetTransactionsAsync(account.EnableBankingAccountId);
+
+            var existingExternalIds = await _db.BankAccountTransactions
+                .Where(t => t.LinkedBankAccountId == linkedAccountId && t.ExternalTransactionId != null)
+                .Select(t => t.ExternalTransactionId)
+                .ToListAsync();
+            var existingIdSet = existingExternalIds.ToHashSet();
+
+            var added = 0;
+            foreach (var transaction in fetched.Transactions)
+            {
+                if (transaction.TransactionId is not null && existingIdSet.Contains(transaction.TransactionId))
+                    continue;
+
+                if (!DateOnly.TryParse(transaction.BookingDate, CultureInfo.InvariantCulture, out var bookingDate))
+                    continue;
+
+                var amount = decimal.Parse(transaction.TransactionAmount.Amount, CultureInfo.InvariantCulture);
+                if (transaction.CreditDebitIndicator == "DBIT")
+                    amount = -amount;
+
+                _db.BankAccountTransactions.Add(new BankAccountTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    LinkedBankAccountId = linkedAccountId,
+                    Description = transaction.RemittanceInformation is { Count: > 0 }
+                        ? string.Join(" ", transaction.RemittanceInformation)
+                        : null,
+                    Amount = amount,
+                    Currency = transaction.TransactionAmount.Currency,
+                    TransactionDate = bookingDate,
+                    ExternalTransactionId = transaction.TransactionId
+                });
+
+                added++;
+            }
+
+            account.LastSyncedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { added, lastSyncedAt = account.LastSyncedAt });
         }
 
         [HttpGet("banks")]

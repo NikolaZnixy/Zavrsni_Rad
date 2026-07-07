@@ -1,0 +1,74 @@
+@model Web.Models.TransactionsListViewModel
+@{
+    Layout = "_Layout";
+}
+
+<h1>@Model.Account.DisplayName</h1>
+<p class="text-muted">@Model.Account.AspspName (@Model.Account.Country)</p>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <span id="last-synced-text" class="text-muted small">
+        @(Model.Account.LastSyncedAt is { } lastSyncedAt
+            ? $"Last synced: {lastSyncedAt.ToLocalTime():yyyy-MM-dd HH:mm}"
+            : "Never synced")
+    </span>
+    <button type="button" id="fetch-transactions-btn" class="btn btn-primary" data-account-id="@Model.Account.Id">
+        Fetch transactions
+    </button>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th class="text-end">Amount</th>
+            <th>Currency</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Transactions.Count == 0)
+        {
+            <tr>
+                <td colspan="4" class="text-center text-muted">No transactions fetched yet</td>
+            </tr>
+        }
+        else
+        {
+            foreach (var transaction in Model.Transactions)
+            {
+                <tr>
+                    <td>@transaction.TransactionDate.ToString("yyyy-MM-dd")</td>
+                    <td>@transaction.Description</td>
+                    <td class="text-end @(transaction.Amount < 0 ? "text-danger" : "text-success")">
+                        @transaction.Amount.ToString("N2")
+                    </td>
+                    <td>@transaction.Currency</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        document.getElementById("fetch-transactions-btn").addEventListener("click", async (e) => {
+            const btn = e.currentTarget;
+            const accountId = btn.dataset.accountId;
+
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = "Fetching...";
+
+            try {
+                const response = await fetch(`/api/bank/transactions/${accountId}/sync`, { method: "POST" });
+                if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+                window.location.reload();
+            } catch (err) {
+                alert("Error fetching transactions: " + err);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    </script>
+}

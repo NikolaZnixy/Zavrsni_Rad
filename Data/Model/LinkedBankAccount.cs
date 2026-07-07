@@ -13,6 +13,7 @@ namespace Data.Model
         public string Iban { get; set; } = string.Empty;
         public DateTimeOffset ConsentValidUntil { get; set; }
         public DateTimeOffset LinkedAt { get; set; }
+        public DateTimeOffset? LastSyncedAt { get; set; }
 
         //EF navigation property
         public virtual AppUser User { get; set; } = null!;

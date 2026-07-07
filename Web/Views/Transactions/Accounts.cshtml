@@ -25,11 +25,10 @@ else
                                 <div class="text-muted small">@account.AspspName (@account.Country)</div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary fetch-transactions-btn" data-account-id="@account.Id">
-                            Fetch transactions
-                        </button>
+                        <a class="btn btn-sm btn-outline-secondary" href="/Transactions/List?accountId=@account.Id">
+                            View Transactions
+                        </a>
                     </div>
-                    <pre class="card-footer small mb-0 d-none" style="max-height: 300px; overflow: auto;"></pre>
                 </div>
             </div>
         }
@@ -85,28 +84,5 @@ else
 
         document.getElementById("country").addEventListener("change", e => loadBanks(e.target.value));
         loadBanks(document.getElementById("country").value);
-
-        document.querySelectorAll(".fetch-transactions-btn").forEach(btn => {
-            btn.addEventListener("click", async () => {
-                const accountId = btn.dataset.accountId;
-                const pre = btn.closest(".card").querySelector("pre");
-
-                btn.disabled = true;
-                const originalText = btn.textContent;
-                btn.textContent = "Fetching...";
-
-                try {
-                    const response = await fetch(`/api/bank/transactions/${accountId}`);
-                    const data = await response.json();
-                    pre.textContent = JSON.stringify(data, null, 2);
-                } catch (e) {
-                    pre.textContent = "Error fetching transactions: " + e;
-                } finally {
-                    pre.classList.remove("d-none");
-                    btn.disabled = false;
-                    btn.textContent = originalText;
-                }
-            });
-        });
     </script>
 }
