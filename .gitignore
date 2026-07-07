@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # All db files
 *.db
+
+#All secret key files
+*.pem

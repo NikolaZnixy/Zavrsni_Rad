@@ -1,4 +1,4 @@
-﻿namespace Data.Model
+﻿namespace Data.Model.Data
 {
     public static class Constants
     {

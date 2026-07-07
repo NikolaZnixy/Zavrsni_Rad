@@ -33,9 +33,15 @@ namespace Web
                     options.ClientSecret = configuration["0Auth:ClientSecret"]!;
                 });
 
-            //Seed roles
+            return services;
+        }
 
-
+        public static IServiceCollection AddEnableBanking(this IServiceCollection services)
+        {
+            services.AddHttpClient<EnableBankingClient>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.enablebanking.com/");
+            });
 
             return services;
         }

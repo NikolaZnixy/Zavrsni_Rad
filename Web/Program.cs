@@ -1,4 +1,4 @@
-using Data.Model;
+using Data.Model.Data;
 using Microsoft.AspNetCore.Identity;
 using Web;
 
@@ -10,6 +10,7 @@ var services = builder.Services;
 services
     .AddCoreServices(builder.Configuration)
     .AddIdentity(builder.Configuration)
+    .AddEnableBanking()
     .AddControllersWithViews();
 
 services.AddRazorPages();
