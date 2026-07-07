@@ -94,6 +94,15 @@ namespace Data.Model.Data
 
             [JsonPropertyName("currency")]
             public string? Currency { get; set; }
+
+            [JsonPropertyName("account_id")]
+            public AccountIdentification? AccountId { get; set; }
+        }
+
+        public class AccountIdentification
+        {
+            [JsonPropertyName("iban")]
+            public string? Iban { get; set; }
         }
 
         // GET /accounts/{uid}/transactions

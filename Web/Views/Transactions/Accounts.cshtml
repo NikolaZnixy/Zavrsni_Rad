@@ -1,0 +1,112 @@
+@model List<Data.Model.LinkedBankAccount>
+@{
+    Layout = "_Layout";
+    var hasAccounts = Model.Count > 0;
+}
+
+<h1>Linked Accounts</h1>
+
+@if (!hasAccounts)
+{
+    <p class="text-muted">You haven't linked any bank accounts yet.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 g-3 mb-4">
+        @foreach (var account in Model)
+        {
+            <div class="col">
+                <div class="card">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="fa-solid fa-credit-card fa-2x me-3 text-primary"></i>
+                            <div>
+                                <div class="fw-bold">@account.DisplayName</div>
+                                <div class="text-muted small">@account.AspspName (@account.Country)</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary fetch-transactions-btn" data-account-id="@account.Id">
+                            Fetch transactions
+                        </button>
+                    </div>
+                    <pre class="card-footer small mb-0 d-none" style="max-height: 300px; overflow: auto;"></pre>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#linkAccountForm">
+    @(hasAccounts ? "Link another account" : "Link Account")
+</button>
+
+<div class="collapse mt-3" id="linkAccountForm">
+    <div class="card card-body">
+        <form method="get" action="/api/bank/connect">
+            <div class="mb-3">
+                <label for="displayName" class="form-label">Display name</label>
+                <input type="text" id="displayName" name="displayName" class="form-control" required />
+            </div>
+
+            <div class="mb-3">
+                <label for="country" class="form-label">Country</label>
+                <select id="country" name="country" class="form-control">
+                    <option value="HR">Croatia</option>
+                    <option value="FI">Finland</option>
+                    <option value="DE">Germany</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="bank" class="form-label">Bank</label>
+                <select id="bank" name="bank" class="form-control">
+                    <option value="">Loading banks...</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Connect bank account</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function loadBanks(country) {
+            const bankSelect = document.getElementById("bank");
+            bankSelect.innerHTML = "<option>Loading...</option>";
+
+            const response = await fetch(`/api/bank/banks?country=${country}`);
+            const banks = await response.json();
+
+            bankSelect.innerHTML = banks
+                .map(b => `<option value="${b.name}">${b.name}</option>`)
+                .join("");
+        }
+
+        document.getElementById("country").addEventListener("change", e => loadBanks(e.target.value));
+        loadBanks(document.getElementById("country").value);
+
+        document.querySelectorAll(".fetch-transactions-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const accountId = btn.dataset.accountId;
+                const pre = btn.closest(".card").querySelector("pre");
+
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = "Fetching...";
+
+                try {
+                    const response = await fetch(`/api/bank/transactions/${accountId}`);
+                    const data = await response.json();
+                    pre.textContent = JSON.stringify(data, null, 2);
+                } catch (e) {
+                    pre.textContent = "Error fetching transactions: " + e;
+                } finally {
+                    pre.classList.remove("d-none");
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            });
+        });
+    </script>
+}
