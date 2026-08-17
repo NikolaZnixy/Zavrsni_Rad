@@ -1,3 +1,13 @@
+:root {
+  --app-bg: #151515;
+  --app-surface: #202020;
+  --app-surface-hover: #2a2a2a;
+  --app-text: #f5f5f5;
+  --app-text-muted: #9a9a9a;
+  --app-active-bg: #ffffff;
+  --app-active-text: #202020;
+}
+
 html {
   font-size: 14px;
 }
@@ -15,8 +25,696 @@ html {
 html {
   position: relative;
   min-height: 100%;
+  background-color: var(--app-bg);
 }
 
 body {
   margin-bottom: 60px;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+}
+
+a {
+  color: #4dabf7;
+}
+
+/* App shell: left icon-rail navigation + absolutely-positioned profile button */
+
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  flex: 0 0 auto;
+  width: 84px;
+  margin: 16px 0 16px 16px;
+  padding: 20px 0;
+  background-color: var(--app-surface);
+  border-radius: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.app-sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: var(--app-text);
+  font-size: 1.15rem;
+  text-decoration: none;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.app-sidebar-link:hover {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.app-sidebar-link.active {
+  background-color: var(--app-active-bg);
+  color: var(--app-active-text);
+}
+
+.app-profile {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 1030;
+}
+
+.app-profile-toggle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--app-surface);
+  color: var(--app-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.app-profile-toggle:hover,
+.app-profile-toggle:focus {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.app-profile-menu {
+  background-color: var(--app-surface);
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.app-profile-menu .dropdown-item,
+.app-profile-menu .dropdown-header {
+  color: var(--app-text);
+}
+
+.app-profile-menu .dropdown-item:hover,
+.app-profile-menu .dropdown-item:focus {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.app-profile-menu .dropdown-divider {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px 32px;
+}
+
+.border-top {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Bank picker: replaces the plain <select> when linking an account */
+
+.bank-picker {
+  display: grid;
+  grid-template-columns: repeat(8, 96px);
+  gap: 16px;
+}
+
+.bank-picker-fluid {
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+}
+
+.bank-picker-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  aspect-ratio: 1 / 1;
+  padding: 16px;
+  background-color: var(--app-surface);
+  border: 2px solid transparent;
+  border-radius: 20px;
+  transition: opacity .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.bank-picker-item:hover {
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+.bank-picker-item.selected {
+  border-color: #ffffff;
+}
+
+.bank-picker-item.dimmed {
+  opacity: 0.35;
+}
+
+.bank-picker-icon {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.bank-picker-name {
+  position: absolute;
+  inset: auto 4px 4px 4px;
+  text-align: center;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--app-active-text);
+  background-color: var(--app-active-bg);
+  border-radius: 6px;
+  padding: 2px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+
+.bank-picker-item:hover .bank-picker-name {
+  opacity: 1;
+}
+
+/* Accounts page: account overview panel + a slide-in "link a bank" drawer */
+
+.accounts-layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.accounts-panel {
+  background-color: var(--app-surface);
+  border-radius: 20px;
+  padding: 24px 28px;
+}
+
+.accounts-panel-overview {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.accounts-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.accounts-panel-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Pill buttons */
+
+.btn-pill,
+.btn-pill-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background-color .15s ease, opacity .15s ease;
+  white-space: nowrap;
+}
+
+.btn-pill-outline {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-pill-outline:hover {
+  background-color: #333333;
+  color: var(--app-text);
+}
+
+.btn-pill {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-pill:hover {
+  background-color: #333333;
+  color: var(--app-text);
+}
+
+.btn-pill-primary {
+  background-color: var(--app-active-bg);
+  color: var(--app-active-text);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-pill-primary:hover:not(:disabled) {
+  background-color: #e6e6e6;
+  color: var(--app-active-text);
+}
+
+.btn-pill-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Account list rows */
+
+.account-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: opacity .15s ease;
+}
+
+.account-row:last-child {
+  border-bottom: none;
+}
+
+.account-row-expired {
+  opacity: 0.4;
+}
+
+.account-row-icon {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background-color: var(--app-surface-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.account-row-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.account-row-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.account-row-name {
+  font-weight: 700;
+}
+
+.account-row-meta {
+  color: var(--app-text-muted);
+  font-size: 0.8rem;
+}
+
+.account-row-action {
+  flex: 0 0 auto;
+}
+
+.account-row-expired .account-row-action {
+  pointer-events: none;
+}
+
+.accounts-tab-content {
+  padding-top: 8px;
+}
+
+/* Link-a-bank drawer: slides in from the right, closable */
+
+.link-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 1040;
+}
+
+.link-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.link-drawer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: min(420px, calc(100vw - 32px));
+  overflow-y: auto;
+  transform: translateX(calc(100% + 16px));
+  transition: transform .25s ease;
+  z-index: 1050;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.link-drawer.open {
+  transform: translateX(0);
+}
+
+.link-drawer-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.link-drawer-close:hover {
+  background-color: #333333;
+}
+
+/* Dark-styled inputs used inside the accounts panel */
+
+.accounts-input {
+  display: block;
+  width: 100%;
+  background-color: var(--app-surface-hover);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--app-text);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+
+.accounts-input::placeholder {
+  color: var(--app-text-muted);
+}
+
+.accounts-input:focus {
+  outline: none;
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 60px;
+  background-color: var(--app-bg);
+  color: var(--app-text-muted);
+}
+
+/* Transactions list page: dark card panel + table, reusing the Accounts page's pill/panel tokens */
+
+.btn-pill-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  background-color: var(--app-surface-hover);
+  color: #ff6b6b;
+  border: 1px solid rgba(229, 72, 77, 0.35);
+  transition: background-color .15s ease, color .15s ease;
+  cursor: pointer;
+}
+
+.btn-pill-danger-outline:hover {
+  background-color: rgba(229, 72, 77, 0.15);
+  color: #ff8787;
+}
+
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--app-text);
+}
+
+.transactions-table thead th {
+  text-align: left;
+  padding: 0 16px 10px 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.transactions-table thead th:last-child {
+  padding-right: 0;
+}
+
+.transactions-table tbody td {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.transactions-table tbody td:last-child {
+  padding-right: 0;
+}
+
+.transactions-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.transactions-table tbody tr:hover td {
+  background-color: var(--app-surface-hover);
+}
+
+.transactions-table .amount-negative {
+  color: #ff6b6b;
+}
+
+.transactions-table .amount-positive {
+  color: #51cf66;
+}
+
+.transactions-empty td {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--app-text-muted);
+}
+
+.transactions-empty:hover td {
+  background-color: transparent;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.category-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--category-color, var(--app-text-muted));
+  flex-shrink: 0;
+}
+
+/* Unsaved manual category pick - dashed outline instead of a filled pill until "Save changes" */
+.category-badge-pending {
+  background-color: transparent;
+  border: 1px dashed var(--category-color, var(--app-text-muted));
+  padding: 2px 10px;
+}
+
+/* "Categorize transactions" AI action: standalone, centered pill with a gradient sparkle icon */
+
+.ai-sparkle-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.btn-pill-ai {
+  padding: 12px 26px;
+  font-size: 0.9rem;
+  background-color: var(--app-surface);
+  color: var(--app-text);
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(var(--app-surface), var(--app-surface)),
+    linear-gradient(135deg, #4f8cff, #b15cff, #ff7a9c);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 4px 18px rgba(79, 140, 255, 0.12);
+  transition: background-color .15s ease, box-shadow .2s ease, transform .15s ease;
+}
+
+.btn-pill-ai:hover {
+  background-image: linear-gradient(var(--app-surface-hover), var(--app-surface-hover)),
+    linear-gradient(135deg, #4f8cff, #b15cff, #ff7a9c);
+  color: var(--app-text);
+  box-shadow: 0 6px 22px rgba(177, 92, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.btn-pill-ai:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Transactions page: category legend column + table, side by side */
+
+.transactions-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.transactions-layout .accounts-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .transactions-layout {
+    flex-direction: column;
+  }
+
+  .category-legend {
+    width: 100%;
+  }
+}
+
+.category-legend {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: var(--app-surface);
+  border-radius: 20px;
+  padding: 20px;
+  align-self: flex-start;
+}
+
+.category-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.category-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--app-text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.category-legend-item:hover {
+  background-color: var(--app-surface-hover);
+}
+
+.category-legend-item.selected {
+  background-color: var(--app-surface-hover);
+  border-color: var(--category-color, rgba(255, 255, 255, 0.3));
+}
+
+.category-legend-name {
+  text-transform: capitalize;
+}
+
+/* Subtle "how this works" hint, with a Font Awesome info-circle icon */
+
+.category-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  opacity: .7;
+  margin: 0;
+}
+
+.category-hint i {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.category-legend-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.category-pending-count {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.category-legend-actions-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.category-legend-actions-buttons button {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* While a legend category is selected, table rows become clickable targets */
+
+.transactions-table.category-picking-active tbody tr:not(.transactions-empty) {
+  cursor: pointer;
+}
+
+.row-pending-change {
+  box-shadow: inset 3px 0 0 0 var(--pending-color, var(--app-text-muted));
 }

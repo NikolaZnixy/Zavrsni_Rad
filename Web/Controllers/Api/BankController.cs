@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Text.Json;
+using static Data.Model.Data.GroqDtos;
 
 namespace Web.Controllers.Api
 {
@@ -15,14 +16,18 @@ namespace Web.Controllers.Api
     public class BankController : ControllerBase
     {
         private readonly EnableBankingClient _client;
+        private readonly GroqClient _groqClient;
         private readonly AppDbContext _db;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IWebHostEnvironment _env;
 
-        public BankController(EnableBankingClient client, AppDbContext db, UserManager<AppUser> userManager)
+        public BankController(EnableBankingClient client, GroqClient groqClient, AppDbContext db, UserManager<AppUser> userManager, IWebHostEnvironment env)
         {
             _client = client;
+            _groqClient = groqClient;
             _db = db;
             _userManager = userManager;
+            _env = env;
         }
 
         private record LinkState(string UserId, string DisplayName, string AspspName, string Country);
@@ -97,14 +102,19 @@ namespace Web.Controllers.Api
             var added = 0;
             foreach (var transaction in fetched.Transactions)
             {
-                if (transaction.TransactionId is not null && existingIdSet.Contains(transaction.TransactionId))
+                var externalId = transaction.TransactionId ?? transaction.EntryReference;
+
+                if (externalId is not null && existingIdSet.Contains(externalId))
                     continue;
 
                 if (!DateOnly.TryParse(transaction.BookingDate, CultureInfo.InvariantCulture, out var bookingDate))
                     continue;
 
                 var amount = decimal.Parse(transaction.TransactionAmount.Amount, CultureInfo.InvariantCulture);
-                if (transaction.CreditDebitIndicator == "DBIT")
+                var isExpense = transaction.DebtorAccount?.Iban is { } debtorIban
+                    ? debtorIban == account.Iban
+                    : transaction.CreditDebitIndicator == "DBIT";
+                if (isExpense)
                     amount = -amount;
 
                 _db.BankAccountTransactions.Add(new BankAccountTransaction
@@ -117,8 +127,11 @@ namespace Web.Controllers.Api
                     Amount = amount,
                     Currency = transaction.TransactionAmount.Currency,
                     TransactionDate = bookingDate,
-                    ExternalTransactionId = transaction.TransactionId
+                    ExternalTransactionId = externalId
                 });
+
+                if (externalId is not null)
+                    existingIdSet.Add(externalId);
 
                 added++;
             }
@@ -129,12 +142,152 @@ namespace Web.Controllers.Api
             return Ok(new { added, lastSyncedAt = account.LastSyncedAt });
         }
 
+        /// <summary>
+        /// Sends every still-uncategorized transaction for this account to Groq and applies whatever
+        /// categories come back after validating them. Never re-categorizes transactions that already
+        /// have a category (AI-assigned or otherwise) - only fills in the blanks. User-triggered only,
+        /// not run automatically on sync.
+        /// </summary>
+        [HttpPost("transactions/{linkedAccountId}/categorize")]
+        [Authorize]
+        public async Task<IActionResult> CategorizeTransactions(Guid linkedAccountId)
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var account = await _db.LinkedBankAccounts
+                .FirstOrDefaultAsync(a => a.Id == linkedAccountId && a.UserId == userId);
+
+            if (account is null)
+                return NotFound();
+
+            var uncategorized = await _db.BankAccountTransactions
+                .Where(t => t.LinkedBankAccountId == linkedAccountId && t.TransactionCategoryId == null)
+                .ToListAsync();
+
+            if (uncategorized.Count == 0)
+                return Ok(new { categorized = 0, total = 0 });
+
+            var categories = await _db.TransactionCategories.ToListAsync();
+            var categoryIdByName = categories.ToDictionary(c => c.Name, c => c.Id, StringComparer.OrdinalIgnoreCase);
+            var categoryNames = categories.Select(c => c.Name).ToList();
+
+            var categorized = 0;
+
+            foreach (var batch in uncategorized.Chunk(60))
+            {
+                var payload = batch.Select(t => new TransactionForCategorization
+                {
+                    Id = t.Id,
+                    Description = t.Description,
+                    Amount = t.Amount,
+                    Currency = t.Currency,
+                    Date = t.TransactionDate.ToString("yyyy-MM-dd")
+                }).ToList();
+
+                GroqCategorizationResponse? result;
+                try
+                {
+                    result = await _groqClient.CategorizeTransactionsAsync(payload, categoryNames);
+                }
+                catch (HttpRequestException)
+                {
+                    // Groq call failed for this batch - leave it uncategorized rather than failing the whole request.
+                    continue;
+                }
+
+                if (result is null)
+                    continue;
+
+                var batchById = batch.ToDictionary(t => t.Id);
+
+                foreach (var item in result.Categorizations)
+                {
+                    // Ignore ids the model hallucinated (anything we didn't actually send it) and
+                    // categories that aren't an exact match to the known set - never guess-map them.
+                    if (item.Category is null)
+                        continue;
+                    if (!batchById.TryGetValue(item.Id, out var transaction))
+                        continue;
+                    if (!categoryIdByName.TryGetValue(item.Category, out var categoryId))
+                        continue;
+
+                    transaction.TransactionCategoryId = categoryId;
+                    categorized++;
+                }
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { categorized, total = uncategorized.Count });
+        }
+
+        public record ManualCategoryAssignment(Guid TransactionId, Guid CategoryId);
+
+        /// <summary>
+        /// Applies user-picked (not AI-picked) categories to a batch of transactions in one go - the
+        /// "select a category, click transactions, save changes" flow on the transactions list page.
+        /// Overwrites whatever category (AI-assigned or manual) a transaction already had.
+        /// </summary>
+        [HttpPatch("transactions/{linkedAccountId}/categories")]
+        [Authorize]
+        public async Task<IActionResult> SetTransactionCategories(Guid linkedAccountId, [FromBody] List<ManualCategoryAssignment> assignments)
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var account = await _db.LinkedBankAccounts
+                .FirstOrDefaultAsync(a => a.Id == linkedAccountId && a.UserId == userId);
+
+            if (account is null)
+                return NotFound();
+
+            if (assignments is null || assignments.Count == 0)
+                return Ok(new { updated = 0 });
+
+            var validCategoryIds = (await _db.TransactionCategories.Select(c => c.Id).ToListAsync()).ToHashSet();
+
+            var transactionIds = assignments.Select(a => a.TransactionId).ToHashSet();
+            var transactions = await _db.BankAccountTransactions
+                .Where(t => t.LinkedBankAccountId == linkedAccountId && transactionIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id);
+
+            var updated = 0;
+            foreach (var assignment in assignments)
+            {
+                // Ignore anything pointing at a transaction that isn't actually this account's, or a
+                // category id that doesn't exist - never trust the client payload blindly.
+                if (!validCategoryIds.Contains(assignment.CategoryId))
+                    continue;
+                if (!transactions.TryGetValue(assignment.TransactionId, out var transaction))
+                    continue;
+
+                transaction.TransactionCategoryId = assignment.CategoryId;
+                updated++;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { updated });
+        }
+
         [HttpGet("banks")]
         [Authorize]
         public async Task<IActionResult> GetBanks(string country)
         {
             var result = await _client.GetAspspsAsync(country);
-            return Ok(result.Aspsps.Select(a => new { a.Name, a.Country, a.Bic }));
+            return Ok(result.Aspsps.Select(a => new
+            {
+                a.Name,
+                a.Country,
+                a.Bic,
+                a.Logo,
+                IconPath = ResolveIconPath(a.Name)
+            }));
+        }
+
+        /// <summary>Resolves a curated bank icon, falling back to the generic icon if the file hasn't been added to wwwroot yet.</summary>
+        private string ResolveIconPath(string aspspName)
+        {
+            var icon = BankIcons.GetByName(aspspName);
+            var physicalPath = Path.Combine(_env.WebRootPath, icon.IconPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            return System.IO.File.Exists(physicalPath) ? icon.IconPath : BankIcons.Generic.IconPath;
         }
     }
 }

@@ -1,6 +1,10 @@
-﻿@using Data.Model
+@using Data.Model
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<AppUser> SignInManager
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,43 +17,58 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        @if (SignInManager.IsSignedIn(User))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Transactions" asp-action="Accounts">Transactions</a>
-                            </li>
-                        }
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                    <partial name="_LoginPartial" />
-                </div>
-            </div>
+    <div class="app-shell">
+        <nav class="app-sidebar" aria-label="Primary">
+            <ul class="app-sidebar-nav">
+                <li>
+                    <a class="app-sidebar-link @(currentController == "Transactions" ? "active" : "")"
+                       asp-controller="Transactions" asp-action="Accounts" title="Accounts">
+                        <i class="fa-solid fa-credit-card"></i>
+                    </a>
+                </li>
+                                <li>
+                    <a class="app-sidebar-link @(currentController == "Statistics" ? "active" : "")"
+                       asp-controller="Statistics" asp-action="Index" title="Statistics">
+                        <i class="fa-solid fa-chart-bar"></i>
+                    </a>
+                </li>
+                <li>
+                    <a class="app-sidebar-link @(currentController == "Calendar" ? "active" : "")"
+                       asp-controller="Calendar" asp-action="Index" title="Calendar">
+                        <i class="fa-solid fa-calendar"></i>
+                    </a>
+                </li>
+                <li>
+                    <a class="app-sidebar-link" href="#" title="Help">
+                        <i class="fa-solid fa-circle-question"></i>
+                    </a>
+                </li>
+                <li>
+                    <a class="app-sidebar-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")"
+                       asp-controller="Home" asp-action="Privacy" title="Privacy">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </a>
+                </li>
+            </ul>
         </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+
+        <div class="app-profile dropdown">
+            <button class="app-profile-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+                <i class="fa-solid fa-user"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end app-profile-menu">
+                <partial name="_LoginPartial" />
+            </ul>
+        </div>
+
+        <main class="app-main" role="main">
             @RenderBody()
         </main>
     </div>
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2026 - Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            &copy; 2026 - Web
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

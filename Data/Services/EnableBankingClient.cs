@@ -75,7 +75,12 @@ namespace Data.Services
             response.EnsureSuccessStatusCode();
 
             var rawJson = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(rawJson);
+            var prettyJson = System.Text.Json.JsonSerializer.Serialize(
+                System.Text.Json.JsonDocument.Parse(rawJson).RootElement,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            Console.WriteLine("===== Enable Banking raw transactions response =====");
+            Console.WriteLine(prettyJson);
+            Console.WriteLine("===== End raw transactions response =====");
 
             return System.Text.Json.JsonSerializer.Deserialize<TransactionsResponse>(rawJson)!;
         }

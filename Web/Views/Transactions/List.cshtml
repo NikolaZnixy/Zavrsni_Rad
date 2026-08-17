@@ -1,6 +1,21 @@
 @model Web.Models.TransactionsListViewModel
 @{
     Layout = "_Layout";
+
+    // Fixed accent color per category name, so the legend dots and the table's category badges
+    // always agree. Falls back to a neutral grey for any category not in this map (e.g. one added
+    // later that hasn't been assigned a color yet).
+    var categoryColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["car"] = "#4dabf7",
+        ["gift"] = "#f783ac",
+        ["luxury"] = "#ffd43b",
+        ["groceries"] = "#51cf66",
+        ["subscriptions"] = "#b197fc"
+    };
+
+    string ColorFor(string categoryName) =>
+        categoryColors.TryGetValue(categoryName, out var color) ? color : "#9a9a9a";
 }
 
 <h1>@Model.Account.DisplayName</h1>
@@ -12,43 +27,113 @@
             ? $"Last synced: {lastSyncedAt.ToLocalTime():yyyy-MM-dd HH:mm}"
             : "Never synced")
     </span>
-    <button type="button" id="fetch-transactions-btn" class="btn btn-primary" data-account-id="@Model.Account.Id">
-        Fetch transactions
+
+    <div>
+        <form asp-action="Clear" asp-route-accountId="@Model.Account.Id" method="post" class="d-inline"
+              onsubmit="return confirm('Delete all stored transactions for this account? This cannot be undone.');">
+            <button type="submit" class="btn-pill-danger-outline">Clear transactions</button>
+        </form>
+        <button type="button" id="fetch-transactions-btn" class="btn-pill btn-pill-primary" data-account-id="@Model.Account.Id">
+            Fetch transactions
+        </button>
+    </div>
+</div>
+
+<div class="d-flex justify-content-center mb-4">
+    <button type="button" id="categorize-transactions-btn" class="btn-pill btn-pill-ai" data-account-id="@Model.Account.Id">
+        <svg class="ai-sparkle-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true" focusable="false">
+            <defs>
+                <linearGradient id="aiSparkleGradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#4F8CFF" />
+                    <stop offset="50%" stop-color="#B15CFF" />
+                    <stop offset="100%" stop-color="#FF7A9C" />
+                </linearGradient>
+            </defs>
+            <path d="M12 2 C12 9 15 12 22 12 C15 12 12 15 12 22 C12 15 9 12 2 12 C9 12 12 9 12 2 Z" fill="url(#aiSparkleGradient)" />
+            <path d="M19 15 C19 17.2 20.8 19 23 19 C20.8 19 19 20.8 19 23 C19 20.8 17.2 19 15 19 C17.2 19 19 17.2 19 15 Z" fill="url(#aiSparkleGradient)" />
+        </svg>
+        <span>Categorize transactions</span>
     </button>
 </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th class="text-end">Amount</th>
-            <th>Currency</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (Model.Transactions.Count == 0)
-        {
-            <tr>
-                <td colspan="4" class="text-center text-muted">No transactions fetched yet</td>
-            </tr>
-        }
-        else
-        {
-            foreach (var transaction in Model.Transactions)
+<div class="transactions-layout">
+    <aside class="category-legend">
+        <div class="category-legend-list">
+            @foreach (var category in Model.Categories)
             {
-                <tr>
-                    <td>@transaction.TransactionDate.ToString("yyyy-MM-dd")</td>
-                    <td>@transaction.Description</td>
-                    <td class="text-end @(transaction.Amount < 0 ? "text-danger" : "text-success")">
-                        @transaction.Amount.ToString("N2")
-                    </td>
-                    <td>@transaction.Currency</td>
-                </tr>
+                <button type="button" class="category-legend-item"
+                        data-category-id="@category.Id"
+                        data-category-name="@category.Name"
+                        data-category-color="@ColorFor(category.Name)"
+                        style="--category-color: @ColorFor(category.Name)">
+                    <span class="category-dot"></span>
+                    <span class="category-legend-name">@category.Name</span>
+                </button>
             }
-        }
-    </tbody>
-</table>
+        </div>
+
+        <p class="category-hint">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>To manually change the category, select a category and click on a transaction, then save changes.</span>
+        </p>
+
+        <div class="category-legend-actions" id="category-legend-actions" hidden>
+            <span class="category-pending-count" id="pending-changes-count">0 pending changes</span>
+            <div class="category-legend-actions-buttons">
+                <button type="button" id="discard-category-changes-btn" class="btn-pill">Discard</button>
+                <button type="button" id="save-category-changes-btn" class="btn-pill btn-pill-primary">Save changes</button>
+            </div>
+        </div>
+    </aside>
+
+    <section class="accounts-panel">
+        <table class="transactions-table" id="transactions-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-end">Amount</th>
+                    <th>Currency</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Transactions.Count == 0)
+                {
+                    <tr class="transactions-empty">
+                        <td colspan="5">No transactions fetched yet</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var transaction in Model.Transactions)
+                    {
+                        <tr data-transaction-id="@transaction.Id">
+                            <td>@transaction.TransactionDate.ToString("yyyy-MM-dd")</td>
+                            <td>@transaction.Description</td>
+                            <td class="text-end @(transaction.Amount < 0 ? "amount-negative" : "amount-positive")">
+                                @transaction.Amount.ToString("N2")
+                            </td>
+                            <td>@transaction.Currency</td>
+                            <td data-category-cell>
+                                @if (transaction.TransactionCategory is { } category)
+                                {
+                                    <span class="category-badge" style="--category-color: @ColorFor(category.Name)">
+                                        <span class="category-dot"></span>@category.Name
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </section>
+</div>
 
 @section Scripts {
     <script>
@@ -70,5 +155,150 @@
                 btn.textContent = originalText;
             }
         });
+
+        document.getElementById("categorize-transactions-btn").addEventListener("click", async (e) => {
+            const btn = e.currentTarget;
+            const accountId = btn.dataset.accountId;
+            const label = btn.querySelector("span");
+
+            btn.disabled = true;
+            const originalText = label.textContent;
+            label.textContent = "Categorizing...";
+
+            try {
+                const response = await fetch(`/api/bank/transactions/${accountId}/categorize`, { method: "POST" });
+                if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+                window.location.reload();
+            } catch (err) {
+                alert("Error categorizing transactions: " + err);
+                btn.disabled = false;
+                label.textContent = originalText;
+            }
+        });
+
+        // Manual "pick a category, click transactions, save" flow.
+        (() => {
+            const accountId = "@Model.Account.Id";
+            const legendItems = Array.from(document.querySelectorAll(".category-legend-item"));
+            const rows = Array.from(document.querySelectorAll("#transactions-table tbody tr[data-transaction-id]"));
+            const table = document.getElementById("transactions-table");
+            const actionsBar = document.getElementById("category-legend-actions");
+            const pendingCountLabel = document.getElementById("pending-changes-count");
+            const saveBtn = document.getElementById("save-category-changes-btn");
+            const discardBtn = document.getElementById("discard-category-changes-btn");
+
+            if (rows.length === 0) return; // nothing to categorize on this page
+
+            let selectedCategoryId = null;
+            const pendingChanges = new Map(); // transactionId -> { categoryId, name, color }
+            const originalCellHtml = new Map(); // transactionId -> original rendered category cell
+
+            rows.forEach(row => {
+                const cell = row.querySelector("[data-category-cell]");
+                if (cell) originalCellHtml.set(row.dataset.transactionId, cell.innerHTML);
+            });
+
+            function updateActionsBar() {
+                const count = pendingChanges.size;
+                actionsBar.hidden = count === 0;
+                pendingCountLabel.textContent = `${count} pending change${count === 1 ? "" : "s"}`;
+            }
+
+            function renderPendingBadge(cell, name, color) {
+                cell.innerHTML = "";
+                const badge = document.createElement("span");
+                badge.className = "category-badge category-badge-pending";
+                badge.style.setProperty("--category-color", color);
+                badge.textContent = name;
+                cell.appendChild(badge);
+            }
+
+            legendItems.forEach(item => {
+                item.addEventListener("click", () => {
+                    const wasSelected = item.classList.contains("selected");
+                    legendItems.forEach(el => el.classList.remove("selected"));
+
+                    if (wasSelected) {
+                        selectedCategoryId = null;
+                    } else {
+                        item.classList.add("selected");
+                        selectedCategoryId = item.dataset.categoryId;
+                    }
+
+                    table.classList.toggle("category-picking-active", selectedCategoryId !== null);
+                });
+            });
+
+            rows.forEach(row => {
+                row.addEventListener("click", () => {
+                    if (!selectedCategoryId) return;
+
+                    const transactionId = row.dataset.transactionId;
+                    const cell = row.querySelector("[data-category-cell]");
+                    if (!cell) return;
+
+                    const selectedItem = legendItems.find(el => el.dataset.categoryId === selectedCategoryId);
+                    const existingPending = pendingChanges.get(transactionId);
+
+                    if (existingPending && existingPending.categoryId === selectedCategoryId) {
+                        // Clicking the same pending category again reverts this row.
+                        pendingChanges.delete(transactionId);
+                        cell.innerHTML = originalCellHtml.get(transactionId);
+                        row.classList.remove("row-pending-change");
+                        row.style.removeProperty("--pending-color");
+                    } else {
+                        const name = selectedItem.dataset.categoryName;
+                        const color = selectedItem.dataset.categoryColor;
+                        pendingChanges.set(transactionId, { categoryId: selectedCategoryId, name, color });
+                        renderPendingBadge(cell, name, color);
+                        row.classList.add("row-pending-change");
+                        row.style.setProperty("--pending-color", color);
+                    }
+
+                    updateActionsBar();
+                });
+            });
+
+            discardBtn.addEventListener("click", () => {
+                pendingChanges.forEach((_, transactionId) => {
+                    const row = rows.find(r => r.dataset.transactionId === transactionId);
+                    const cell = row?.querySelector("[data-category-cell]");
+                    if (cell) cell.innerHTML = originalCellHtml.get(transactionId);
+                    row?.classList.remove("row-pending-change");
+                    row?.style.removeProperty("--pending-color");
+                });
+                pendingChanges.clear();
+                updateActionsBar();
+            });
+
+            saveBtn.addEventListener("click", async () => {
+                if (pendingChanges.size === 0) return;
+
+                const assignments = Array.from(pendingChanges.entries()).map(([transactionId, change]) => ({
+                    transactionId,
+                    categoryId: change.categoryId
+                }));
+
+                saveBtn.disabled = true;
+                discardBtn.disabled = true;
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = "Saving...";
+
+                try {
+                    const response = await fetch(`/api/bank/transactions/${accountId}/categories`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(assignments)
+                    });
+                    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+                    window.location.reload();
+                } catch (err) {
+                    alert("Error saving categories: " + err);
+                    saveBtn.disabled = false;
+                    discardBtn.disabled = false;
+                    saveBtn.textContent = originalText;
+                }
+            });
+        })();
     </script>
 }

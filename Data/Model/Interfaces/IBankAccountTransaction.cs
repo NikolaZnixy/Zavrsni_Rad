@@ -9,5 +9,6 @@
         public string Currency { get; }
         public DateOnly TransactionDate { get; }
         public string? ExternalTransactionId { get; }
+        public Guid? TransactionCategoryId { get; }
     }
 }

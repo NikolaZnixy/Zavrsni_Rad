@@ -11,8 +11,10 @@ namespace Data.Model
         public string Currency { get; set; } = string.Empty;
         public DateOnly TransactionDate { get; set; }
         public string? ExternalTransactionId { get; set; } // this is enable banking transaction id, only way to know if transaction has already been fetched
+        public Guid? TransactionCategoryId { get; set; }
 
-        //Ef navigation property
+        //Ef navigation properties
         public virtual LinkedBankAccount LinkedBankAccount { get; set; } = null!;
+        public virtual TransactionCategory? TransactionCategory { get; set; }
     }
 }

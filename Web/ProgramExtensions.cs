@@ -46,5 +46,15 @@ namespace Web
             return services;
         }
 
+        public static IServiceCollection AddGroq(this IServiceCollection services)
+        {
+            services.AddHttpClient<GroqClient>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+            });
+
+            return services;
+        }
+
     }
 }

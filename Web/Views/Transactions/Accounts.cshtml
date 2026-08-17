@@ -1,88 +1,164 @@
+@using Data.Model.Data
 @model List<Data.Model.LinkedBankAccount>
 @{
     Layout = "_Layout";
     var hasAccounts = Model.Count > 0;
+    var now = DateTimeOffset.UtcNow;
 }
 
 <h1>Linked Accounts</h1>
 
-@if (!hasAccounts)
-{
-    <p class="text-muted">You haven't linked any bank accounts yet.</p>
-}
-else
-{
-    <div class="row row-cols-1 row-cols-md-2 g-3 mb-4">
-        @foreach (var account in Model)
+<div class="accounts-layout">
+    <section class="accounts-panel accounts-panel-overview">
+        <div class="accounts-panel-header">
+            <h2 class="accounts-panel-title">Account Overview</h2>
+            <button type="button" class="btn-pill-outline" id="openLinkDrawerBtn">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add New Account</span>
+            </button>
+        </div>
+
+        @if (!hasAccounts)
         {
-            <div class="col">
-                <div class="card">
-                    <div class="card-body d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <i class="fa-solid fa-credit-card fa-2x me-3 text-primary"></i>
-                            <div>
-                                <div class="fw-bold">@account.DisplayName</div>
-                                <div class="text-muted small">@account.AspspName (@account.Country)</div>
-                            </div>
+            <p class="text-muted">You haven't linked any bank accounts yet.</p>
+        }
+        else
+        {
+            <div class="account-list">
+                @foreach (var account in Model)
+                {
+                    var isExpired = account.ConsentValidUntil < now;
+                    <div class="account-row @(isExpired ? "account-row-expired" : "")">
+                        <div class="account-row-icon">
+                            <img src="@BankIcons.GetByName(account.AspspName).IconPath"
+                                 onerror="this.onerror=null;this.src='/images/banks/generic-bank.svg'"
+                                 alt="" />
                         </div>
-                        <a class="btn btn-sm btn-outline-secondary" href="/Transactions/List?accountId=@account.Id">
-                            View Transactions
-                        </a>
+                        <div class="account-row-info">
+                            <div class="account-row-name">@account.DisplayName</div>
+                            <div class="account-row-meta">@account.AspspName (@account.Country)</div>
+                        </div>
+                        @if (isExpired)
+                        {
+                            <span class="btn-pill account-row-action" aria-disabled="true" tabindex="-1">
+                                View Transactions <i class="fa-solid fa-chevron-right"></i>
+                            </span>
+                        }
+                        else
+                        {
+                            <a class="btn-pill account-row-action" href="/Transactions/List?accountId=@account.Id">
+                                View Transactions <i class="fa-solid fa-chevron-right"></i>
+                            </a>
+                        }
                     </div>
-                </div>
+                }
             </div>
         }
+    </section>
+
+</div>
+
+<div class="link-drawer-backdrop" id="linkDrawerBackdrop"></div>
+
+<section class="accounts-panel link-drawer" id="linkDrawer" aria-hidden="true">
+    <div class="accounts-panel-header">
+        <h2 class="accounts-panel-title">Link a New Bank</h2>
+        <button type="button" class="link-drawer-close" id="closeLinkDrawerBtn" aria-label="Close">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
     </div>
-}
 
-<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#linkAccountForm">
-    @(hasAccounts ? "Link another account" : "Link Account")
-</button>
-
-<div class="collapse mt-3" id="linkAccountForm">
-    <div class="card card-body">
+    <div class="accounts-tab-content">
         <form method="get" action="/api/bank/connect">
             <div class="mb-3">
-                <label for="displayName" class="form-label">Display name</label>
-                <input type="text" id="displayName" name="displayName" class="form-control" required />
+                <label for="displayName" class="form-label">Custom Display Name</label>
+                <input type="text" id="displayName" name="displayName" class="accounts-input" required />
             </div>
 
             <div class="mb-3">
                 <label for="country" class="form-label">Country</label>
-                <select id="country" name="country" class="form-control">
+                <select id="country" name="country" class="accounts-input">
                     <option value="HR">Croatia</option>
-                    <option value="FI">Finland</option>
-                    <option value="DE">Germany</option>
                 </select>
+                <p class="text-muted small mb-0 mt-1" style="opacity:.65;">More countries will be supported soon.</p>
             </div>
 
             <div class="mb-3">
-                <label for="bank" class="form-label">Bank</label>
-                <select id="bank" name="bank" class="form-control">
-                    <option value="">Loading banks...</option>
-                </select>
+                <label class="form-label">Bank</label>
+                <input type="hidden" id="bank" name="bank" />
+                <div id="bankPicker" class="bank-picker bank-picker-fluid">
+                    <p class="text-muted mb-0">Loading banks...</p>
+                </div>
             </div>
 
-            <button type="submit" class="btn btn-primary">Connect bank account</button>
+            <button type="submit" id="connectBtn" class="btn-pill btn-pill-primary" disabled>Connect bank account</button>
         </form>
     </div>
-</div>
+</section>
 
 @section Scripts {
     <script>
         async function loadBanks(country) {
-            const bankSelect = document.getElementById("bank");
-            bankSelect.innerHTML = "<option>Loading...</option>";
+            const picker = document.getElementById("bankPicker");
+            const bankInput = document.getElementById("bank");
+            const connectBtn = document.getElementById("connectBtn");
+
+            picker.innerHTML = '<p class="text-muted mb-0">Loading banks...</p>';
+            bankInput.value = "";
+            connectBtn.disabled = true;
 
             const response = await fetch(`/api/bank/banks?country=${country}`);
             const banks = await response.json();
 
-            bankSelect.innerHTML = banks
-                .map(b => `<option value="${b.name}">${b.name}</option>`)
-                .join("");
+            picker.innerHTML = "";
+            for (const bank of banks) {
+                const item = document.createElement("button");
+                item.type = "button";
+                item.className = "bank-picker-item";
+                item.setAttribute("aria-label", bank.name);
+                item.innerHTML = `
+                    <img src="${bank.iconPath}" alt="" class="bank-picker-icon" />
+                    <span class="bank-picker-name">${bank.name}</span>
+                `;
+                item.addEventListener("click", () => selectBank(item, bank.name));
+                picker.appendChild(item);
+            }
+        }
+
+        function selectBank(selectedItem, name) {
+            document.querySelectorAll(".bank-picker-item").forEach(el => {
+                const isSelected = el === selectedItem;
+                el.classList.toggle("selected", isSelected);
+                el.classList.toggle("dimmed", !isSelected);
+            });
+
+            document.getElementById("bank").value = name;
+            document.getElementById("connectBtn").disabled = false;
         }
 
         document.getElementById("country").addEventListener("change", e => loadBanks(e.target.value));
         loadBanks(document.getElementById("country").value);
+
+        const linkDrawer = document.getElementById("linkDrawer");
+        const linkDrawerBackdrop = document.getElementById("linkDrawerBackdrop");
+
+        function openLinkDrawer() {
+            linkDrawer.classList.add("open");
+            linkDrawerBackdrop.classList.add("open");
+            linkDrawer.setAttribute("aria-hidden", "false");
+        }
+
+        function closeLinkDrawer() {
+            linkDrawer.classList.remove("open");
+            linkDrawerBackdrop.classList.remove("open");
+            linkDrawer.setAttribute("aria-hidden", "true");
+        }
+
+        document.getElementById("openLinkDrawerBtn").addEventListener("click", openLinkDrawer);
+        document.getElementById("closeLinkDrawerBtn").addEventListener("click", closeLinkDrawer);
+        linkDrawerBackdrop.addEventListener("click", closeLinkDrawer);
+        document.addEventListener("keydown", e => {
+            if (e.key === "Escape") closeLinkDrawer();
+        });
     </script>
 }

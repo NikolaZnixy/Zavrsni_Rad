@@ -488,3 +488,4 @@ $RECYCLE.BIN/
 *.pem
 Web/app.db-wal
 Web/app.db-shm
+.claude

@@ -120,6 +120,9 @@ namespace Data.Model.Data
             [JsonPropertyName("transaction_id")]
             public string? TransactionId { get; set; }
 
+            [JsonPropertyName("entry_reference")]
+            public string? EntryReference { get; set; }
+
             [JsonPropertyName("transaction_amount")]
             public TransactionAmount TransactionAmount { get; set; } = new();
 
@@ -128,6 +131,12 @@ namespace Data.Model.Data
 
             [JsonPropertyName("credit_debit_indicator")]
             public string? CreditDebitIndicator { get; set; }
+
+            [JsonPropertyName("debtor_account")]
+            public AccountIdentification? DebtorAccount { get; set; }
+
+            [JsonPropertyName("creditor_account")]
+            public AccountIdentification? CreditorAccount { get; set; }
 
             [JsonPropertyName("remittance_information")]
             public List<string>? RemittanceInformation { get; set; }
