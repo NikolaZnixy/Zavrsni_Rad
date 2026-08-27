@@ -1,0 +1,211 @@
+@model Web.Models.CalendarViewModel
+@using System.Text.Json
+
+@{
+    var monthLabel = Model.MonthStart.ToString("MMMM yyyy");
+    var prevMonth = Model.MonthStart.AddMonths(-1);
+    var nextMonth = Model.MonthStart.AddMonths(1);
+    var weekdayLabels = new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+
+    var categoryColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["car"] = "#4dabf7",
+        ["gift"] = "#f783ac",
+        ["luxury"] = "#ffd43b",
+        ["groceries"] = "#51cf66",
+        ["subscriptions"] = "#b197fc"
+    };
+    string ColorFor(string? categoryName) =>
+        categoryName is not null && categoryColors.TryGetValue(categoryName, out var color) ? color : "#9a9a9a";
+}
+
+@{
+    // Local helper so the day-cell markup below isn't duplicated between the compact <a> and full <button> cases.
+    void RenderDayIcons(Web.Models.CalendarDayViewModel day)
+    {
+        if (day.HasRecurring)
+        {
+            <i class="fa-solid fa-arrows-rotate calendar-icon-recurring" aria-hidden="true"></i>
+        }
+        if (day.TotalIncome > 0)
+        {
+            <i class="fa-solid fa-arrow-up calendar-icon-income" aria-hidden="true"></i>
+        }
+    }
+}
+
+<div class="calendar-card @(Model.Compact ? "calendar-card-compact" : "")">
+    @if (Model.Account is null)
+    {
+        <div class="calendar-empty-state">
+            <i class="fa-solid fa-calendar-days"></i>
+            <p>Link a bank account to see your spending calendar.</p>
+            <a asp-controller="Transactions" asp-action="Accounts" class="btn-pill btn-pill-primary">Link an account</a>
+        </div>
+    }
+    else
+    {
+        <div class="calendar-header">
+            <div class="calendar-title-row">
+                @if (!Model.Compact)
+                {
+                    <a class="calendar-nav-btn" href="@Url.Action("Index", "Calendar", new { accountId = Model.Account.Id, year = prevMonth.Year, month = prevMonth.Month })" aria-label="Previous month">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                }
+                <h2 class="calendar-month-label">@monthLabel</h2>
+                @if (!Model.Compact)
+                {
+                    <a class="calendar-nav-btn" href="@Url.Action("Index", "Calendar", new { accountId = Model.Account.Id, year = nextMonth.Year, month = nextMonth.Month })" aria-label="Next month">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+
+            @if (!Model.Compact)
+            {
+                <div class="calendar-controls">
+                    @if (Model.Accounts.Count > 1)
+                    {
+                        <form method="get" asp-controller="Calendar" asp-action="Index" class="calendar-account-form">
+                            <input type="hidden" name="year" value="@Model.Year" />
+                            <input type="hidden" name="month" value="@Model.Month" />
+                            <select name="accountId" class="calendar-account-select" onchange="this.form.submit()">
+                                @foreach (var account in Model.Accounts)
+                                {
+                                    <option value="@account.Id" selected="@(account.Id == Model.Account.Id)">@account.DisplayName</option>
+                                }
+                            </select>
+                        </form>
+                    }
+                    <a class="btn-pill" href="@Url.Action("Index", "Calendar", new { accountId = Model.Account.Id })">Today</a>
+                </div>
+            }
+        </div>
+
+        @if (Model.Compact)
+        {
+            <div class="calendar-stats">
+                <div class="calendar-stat">
+                    <p class="calendar-stat-label">Total spent</p>
+                    <p class="calendar-stat-value">@Model.Summary.TotalSpent.ToString("N2")</p>
+                </div>
+                <div class="calendar-stat">
+                    <p class="calendar-stat-label">Daily average</p>
+                    <p class="calendar-stat-value">@Model.Summary.DailyAverage.ToString("N2")</p>
+                </div>
+                <div class="calendar-stat">
+                    <p class="calendar-stat-label">Recurring</p>
+                    <p class="calendar-stat-value">@Model.Summary.RecurringCount</p>
+                </div>
+            </div>
+
+            <div class="calendar-weekdays">
+                @foreach (var label in weekdayLabels)
+                {
+                    <span>@label</span>
+                }
+            </div>
+
+            <div class="calendar-grid" data-calendar-grid data-open-day="0">
+                @foreach (var day in Model.Days)
+                {
+                    var cellClass = "calendar-day"
+                        + (day.IsCurrentMonth ? "" : " is-outside")
+                        + (day.IsToday ? " is-today" : "");
+                    var heatStyle = $"background: color-mix(in srgb, var(--calendar-heat) {day.IntensityPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)}%, var(--app-surface-hover));";
+
+                    <a class="@cellClass" style="@heatStyle"
+                       href="@Url.Action("Index", "Calendar", new { accountId = Model.Account.Id, year = Model.Year, month = Model.Month, day = day.Date.Day })">
+                        <span class="calendar-day-number">@day.Date.Day</span>
+                        <span class="calendar-day-icons">@{ RenderDayIcons(day); }</span>
+                    </a>
+                }
+            </div>
+
+            <a class="calendar-view-full-link" href="@Url.Action("Index", "Calendar", new { accountId = Model.Account.Id })">
+                View full calendar <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        }
+        else
+        {
+            <div class="calendar-body">
+                <div class="calendar-main">
+                    <div class="calendar-weekdays">
+                        @foreach (var label in weekdayLabels)
+                        {
+                            <span>@label</span>
+                        }
+                    </div>
+
+                    <div class="calendar-grid" data-calendar-grid data-open-day="@(Model.OpenDay ?? 0)">
+                        @foreach (var day in Model.Days)
+                        {
+                            var cellClass = "calendar-day"
+                                + (day.IsCurrentMonth ? "" : " is-outside")
+                                + (day.IsToday ? " is-today" : "");
+                            var heatStyle = $"background: color-mix(in srgb, var(--calendar-heat) {day.IntensityPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)}%, var(--app-surface-hover));";
+
+                            var payload = day.Transactions.Select(t => new
+                            {
+                                desc = string.IsNullOrWhiteSpace(t.Description) ? "(no description)" : t.Description,
+                                amount = t.Amount,
+                                currency = t.Currency,
+                                category = t.TransactionCategory?.Name,
+                                color = ColorFor(t.TransactionCategory?.Name),
+                                recurring = day.RecurringTransactionIds.Contains(t.Id)
+                            });
+                            var json = JsonSerializer.Serialize(payload);
+
+                            <button type="button" class="@cellClass" style="@heatStyle"
+                                    data-day="@day.Date.Day" data-date="@day.Date.ToString("yyyy-MM-dd")" data-transactions="@json">
+                                <span class="calendar-day-number">@day.Date.Day</span>
+                                <span class="calendar-day-icons">@{ RenderDayIcons(day); }</span>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="calendar-legend">
+                        <div class="calendar-legend-item">
+                            <span class="calendar-legend-label">No spend</span>
+                            <span class="calendar-legend-ramp">
+                                @foreach (var pct in new[] { 0, 20, 40, 60, 80 })
+                                {
+                                    <span class="calendar-legend-swatch" style="background: color-mix(in srgb, var(--calendar-heat) @(pct)%, var(--app-surface-hover));"></span>
+                                }
+                            </span>
+                            <span class="calendar-legend-label">High</span>
+                        </div>
+                        <div class="calendar-legend-item">
+                            <i class="fa-solid fa-arrows-rotate calendar-icon-recurring" aria-hidden="true"></i>
+                            <span class="calendar-legend-label">Recurring</span>
+                        </div>
+                        <div class="calendar-legend-item">
+                            <i class="fa-solid fa-arrow-up calendar-icon-income" aria-hidden="true"></i>
+                            <span class="calendar-legend-label">Income</span>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="calendar-side">
+                    <div class="calendar-stats calendar-stats-side">
+                        <div class="calendar-stat">
+                            <p class="calendar-stat-label">Total spent</p>
+                            <p class="calendar-stat-value">@Model.Summary.TotalSpent.ToString("N2")</p>
+                        </div>
+                        <div class="calendar-stat">
+                            <p class="calendar-stat-label">Daily average</p>
+                            <p class="calendar-stat-value">@Model.Summary.DailyAverage.ToString("N2")</p>
+                        </div>
+                        <div class="calendar-stat">
+                            <p class="calendar-stat-label">Recurring</p>
+                            <p class="calendar-stat-value">@Model.Summary.RecurringCount</p>
+                        </div>
+                    </div>
+
+                    <div class="calendar-detail-panel" id="calendarDetailPanel"></div>
+                </aside>
+            </div>
+        }
+    }
+</div>

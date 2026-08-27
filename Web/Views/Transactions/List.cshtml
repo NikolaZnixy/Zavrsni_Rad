@@ -18,7 +18,7 @@
         categoryColors.TryGetValue(categoryName, out var color) ? color : "#9a9a9a";
 }
 
-<h1>@Model.Account.DisplayName</h1>
+<h1 class="page-title">@Model.Account.DisplayName</h1>
 <p class="text-muted">@Model.Account.AspspName (@Model.Account.Country)</p>
 
 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -29,6 +29,11 @@
     </span>
 
     <div>
+        <!-- Not wired up yet - placeholder for the screenshot in the thesis, filtering to be implemented later. -->
+        <button type="button" id="filter-transactions-btn" class="btn-pill" disabled title="Coming soon">
+            <i class="fa-solid fa-filter" aria-hidden="true"></i>
+            Filter
+        </button>
         <form asp-action="Clear" asp-route-accountId="@Model.Account.Id" method="post" class="d-inline"
               onsubmit="return confirm('Delete all stored transactions for this account? This cannot be undone.');">
             <button type="submit" class="btn-pill-danger-outline">Clear transactions</button>
@@ -147,10 +152,18 @@
 
             try {
                 const response = await fetch(`/api/bank/transactions/${accountId}/sync`, { method: "POST" });
-                if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+                if (!response.ok) {
+   
+                    let message = `Request failed: ${response.status}`;
+                    try {
+                        const body = await response.json();
+                        if (body?.error) message = body.error + (body.detail ? `\n\n${body.detail}` : "");
+                    } catch {  }
+                    throw new Error(message);
+                }
                 window.location.reload();
             } catch (err) {
-                alert("Error fetching transactions: " + err);
+                alert("Error fetching transactions: " + err.message);
                 btn.disabled = false;
                 btn.textContent = originalText;
             }

@@ -21,6 +21,35 @@ namespace Data.Services
             _privateKeyPem = config["EnableBanking:PrivateKeyPem"]!;
         }
 
+        /// <summary>
+        /// Lightweight health check - GET /application returns this app's own registered metadata, which
+        /// only succeeds if the JWT signing and application id are valid. Touches no bank/session, so it
+        /// can't contribute to a per-bank rate limit.
+        /// </summary>
+        public async Task<Data.Model.Data.ServiceHealthResult> PingAsync()
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                SetAuthHeader();
+                var response = await _httpClient.GetAsync("application");
+                stopwatch.Stop();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    return new Data.Model.Data.ServiceHealthResult { Healthy = false, Message = $"{(int)response.StatusCode}: {body}", LatencyMs = stopwatch.ElapsedMilliseconds };
+                }
+
+                return new Data.Model.Data.ServiceHealthResult { Healthy = true, Message = "Reachable, credentials valid.", LatencyMs = stopwatch.ElapsedMilliseconds };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                return new Data.Model.Data.ServiceHealthResult { Healthy = false, Message = ex.Message, LatencyMs = stopwatch.ElapsedMilliseconds };
+            }
+        }
+
         public async Task<AspspsResponse> GetAspspsAsync(string country)
         {
             SetAuthHeader();
@@ -62,19 +91,48 @@ namespace Data.Services
             return (await response.Content.ReadFromJsonAsync<SessionResponse>())!;
         }
 
-        public async Task<TransactionsResponse> GetTransactionsAsync(Guid accountUid, DateOnly? dateFrom = null, DateOnly? dateTo = null)
+        /// <summary>
+        /// Fetches a single page of transactions. Passing no dateFrom/dateTo does NOT mean "as much history
+        /// as possible" - Enable Banking's own default for an omitted date_from is a short recent window
+        /// (observed ~7 days for at least one ASPSP), so callers that actually want a wide window need to
+        /// pass dateFrom explicitly (see BankController.SyncTransactions). Pass <paramref name="continuationKey"/>
+        /// (from a previous page's ContinuationKey) to walk subsequent pages.
+        /// </summary>
+        // Enable Banking wraps upstream bank failures as 400 {"error":"ASPSP_ERROR"} - the bank's own connector
+        // choked, not our request. These are usually transient (flaky sandbox/bank connections), so worth a
+        // few retries before giving up. A handful of real 5xx responses are treated the same way.
+        private static readonly TimeSpan[] AspspRetryDelays = { TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5), TimeSpan.FromSeconds(3) };
+
+        public async Task<TransactionsResponse> GetTransactionsAsync(Guid accountUid, DateOnly? dateFrom = null, DateOnly? dateTo = null, string? continuationKey = null)
         {
-            SetAuthHeader();
+            var query = new List<string>();
+            if (dateFrom is { } from) query.Add($"date_from={from:yyyy-MM-dd}");
+            if (dateTo is { } to) query.Add($"date_to={to:yyyy-MM-dd}");
+            if (continuationKey is not null) query.Add($"continuation_key={Uri.EscapeDataString(continuationKey)}");
 
-            var effectiveDateFrom = dateFrom ?? DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-6));
-            var effectiveDateTo = dateTo ?? DateOnly.FromDateTime(DateTime.UtcNow);
+            var url = $"accounts/{accountUid}/transactions" + (query.Count > 0 ? "?" + string.Join("&", query) : "");
 
-            var url = $"accounts/{accountUid}/transactions?date_from={effectiveDateFrom:yyyy-MM-dd}&date_to={effectiveDateTo:yyyy-MM-dd}";
+            string rawJson;
+            for (var attempt = 0; ; attempt++)
+            {
+                SetAuthHeader();
+                var response = await _httpClient.GetAsync(url);
+                var body = await response.Content.ReadAsStringAsync();
 
-            var response = await _httpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
+                if (response.IsSuccessStatusCode)
+                {
+                    rawJson = body;
+                    break;
+                }
 
-            var rawJson = await response.Content.ReadAsStringAsync();
+                var isTransientAspspError = body.Contains("\"ASPSP_ERROR\"") || (int)response.StatusCode >= 500;
+                if (!isTransientAspspError || attempt >= AspspRetryDelays.Length)
+                    throw new HttpRequestException($"Enable Banking GET {url} failed ({(int)response.StatusCode}): {body}");
+
+                Console.WriteLine($"Enable Banking transactions fetch hit a transient ASPSP error (attempt {attempt + 1}/{AspspRetryDelays.Length + 1}), retrying: {body}");
+                await Task.Delay(AspspRetryDelays[attempt]);
+            }
+
             var prettyJson = System.Text.Json.JsonSerializer.Serialize(
                 System.Text.Json.JsonDocument.Parse(rawJson).RootElement,
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
@@ -83,6 +141,27 @@ namespace Data.Services
             Console.WriteLine("===== End raw transactions response =====");
 
             return System.Text.Json.JsonSerializer.Deserialize<TransactionsResponse>(rawJson)!;
+        }
+
+        /// <summary>
+        /// Fetches the account's full available transaction history by walking every continuation_key page
+        /// until the ASPSP stops returning one. This is what "fetch as much as possible" means in practice -
+        /// Enable Banking itself still caps history to whatever the bank/consent allows, but nothing on our
+        /// side truncates it further.
+        /// </summary>
+        public async Task<List<Transaction>> GetAllTransactionsAsync(Guid accountUid, DateOnly? dateFrom = null, DateOnly? dateTo = null)
+        {
+            var all = new List<Transaction>();
+            string? continuationKey = null;
+
+            do
+            {
+                var page = await GetTransactionsAsync(accountUid, dateFrom, dateTo, continuationKey);
+                all.AddRange(page.Transactions);
+                continuationKey = page.ContinuationKey;
+            } while (continuationKey is not null);
+
+            return all;
         }
 
 

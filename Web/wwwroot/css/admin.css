@@ -1,0 +1,112 @@
+/* Admin health panel - only loaded on /Admin. */
+
+.admin-title {
+  margin: 0 0 4px;
+}
+
+.admin-subtitle {
+  margin: 0 0 24px;
+  color: var(--app-text-muted);
+  font-size: 0.9rem;
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.health-card {
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  color: var(--app-glass-text);
+}
+
+.health-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-card-header i {
+  font-size: 1.1rem;
+  color: var(--app-glass-text-muted);
+  width: 22px;
+  text-align: center;
+}
+
+.health-card-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.health-card-desc {
+  margin: -6px 0 4px;
+  font-size: 0.8rem;
+  color: var(--app-glass-text-muted);
+}
+
+.health-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--app-glass-text-muted);
+  flex-shrink: 0;
+}
+
+.status-dot.is-checking {
+  background-color: #4dabf7;
+  animation: status-pulse 1s ease-in-out infinite;
+}
+
+.status-dot.is-healthy {
+  background-color: #51cf66;
+}
+
+.status-dot.is-unhealthy {
+  background-color: #ff6b6b;
+}
+
+.status-dot.is-not-configured {
+  background-color: var(--app-glass-text-muted);
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.health-detail {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: 0.78rem;
+  color: var(--app-glass-text-muted);
+  word-break: break-word;
+}
+
+.health-check-btn {
+  margin-top: 4px;
+  align-self: flex-start;
+}
+
+.health-check-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

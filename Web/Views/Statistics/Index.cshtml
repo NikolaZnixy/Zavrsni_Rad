@@ -1,0 +1,97 @@
+@model Web.Models.StatisticsViewModel
+@using System.Text.Json
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Statistics";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/statistics.css" asp-append-version="true" />
+}
+
+<div class="stats-header">
+    <h1 class="page-title stats-title">Statistics</h1>
+
+    @if (Model.Account is not null && Model.Accounts.Count > 1)
+    {
+        <form method="get" asp-controller="Statistics" asp-action="Index" class="stats-account-form">
+            <select name="accountId" class="stats-account-select" onchange="this.form.submit()">
+                @foreach (var account in Model.Accounts)
+                {
+                    <option value="@account.Id" selected="@(account.Id == Model.Account.Id)">@account.DisplayName</option>
+                }
+            </select>
+        </form>
+    }
+</div>
+
+@if (Model.Account is null)
+{
+    <div class="stats-empty-state">
+        <i class="fa-solid fa-chart-bar"></i>
+        <p>Link a bank account to see spending statistics.</p>
+        <a asp-controller="Transactions" asp-action="Accounts" class="btn-pill btn-pill-primary">Link an account</a>
+    </div>
+}
+else
+{
+    <div class="chart-stack">
+        <div class="chart-card">
+            <h2 class="chart-card-title">Spending over time</h2>
+            <p class="chart-card-subtitle">Total spent per month, last 6 months</p>
+            <div class="chart-card-canvas-wrap">
+                <canvas id="chartSpendingOverTime"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2 class="chart-card-title">Income vs. expenses</h2>
+            <p class="chart-card-subtitle">Money in vs. money out per month, last 6 months</p>
+            <div class="chart-card-canvas-wrap">
+                <canvas id="chartIncomeVsExpenses"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2 class="chart-card-title">Spending by category</h2>
+            <p class="chart-card-subtitle">Share of total spend, last 6 months</p>
+            <div class="chart-card-canvas-wrap is-tall">
+                <canvas id="chartCategoryBreakdown"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2 class="chart-card-title">Top merchants</h2>
+            <p class="chart-card-subtitle">Highest total spend by description, last 6 months</p>
+            <div class="chart-card-canvas-wrap is-tall">
+                <canvas id="chartTopMerchants"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2 class="chart-card-title">Average spend by day of week</h2>
+            <p class="chart-card-subtitle">Spend on an average Monday vs. an average Sunday, etc.</p>
+            <div class="chart-card-canvas-wrap">
+                <canvas id="chartWeekdayAverages"></canvas>
+            </div>
+        </div>
+    </div>
+
+    var chartData = new
+    {
+        monthLabels = Model.MonthLabels,
+        monthlySpending = Model.MonthlySpending,
+        monthlyIncome = Model.MonthlyIncome,
+        categoryBreakdown = Model.CategoryBreakdown,
+        topMerchants = Model.TopMerchants,
+        weekdayLabels = Model.WeekdayLabels,
+        weekdayAverages = Model.WeekdayAverages
+    };
+    var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    <script id="statisticsData" type="application/json">@Html.Raw(JsonSerializer.Serialize(chartData, jsonOptions))</script>
+}
+
+@section Scripts {
+    <script src="~/lib/chart.js/dist/chart.umd.min.js"></script>
+    <script src="~/js/statistics.js" asp-append-version="true"></script>
+}

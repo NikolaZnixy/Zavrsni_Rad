@@ -91,7 +91,25 @@ namespace Web.Controllers.Api
             if (account is null)
                 return NotFound();
 
-            var fetched = await _client.GetTransactionsAsync(account.EnableBankingAccountId);
+            // Enable Banking's own default when date_from is omitted is a short recent window (looks like
+            // ~7 days for this ASPSP), not "as much history as the bank allows" - so ask explicitly for as
+            // far back as we want instead of relying on an unspecified default. The bank/consent may still
+            // cap this shorter (PSD2 commonly limits to 90 days unless extended history was granted).
+            var dateFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-6));
+            var dateTo = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            List<Data.Model.Data.EnableBankingDtos.Transaction> fetched;
+            try
+            {
+                fetched = await _client.GetAllTransactionsAsync(account.EnableBankingAccountId, dateFrom, dateTo);
+            }
+            catch (HttpRequestException ex)
+            {
+                // The bank's own connector failed on Enable Banking's side (ASPSP_ERROR) even after retries,
+                // or some other upstream failure - surface it as a normal error response instead of crashing
+                // the request, so the UI can show it and the user can just try again.
+                return StatusCode(502, new { error = "Your bank couldn't return transactions right now. Try again in a bit.", detail = ex.Message });
+            }
 
             var existingExternalIds = await _db.BankAccountTransactions
                 .Where(t => t.LinkedBankAccountId == linkedAccountId && t.ExternalTransactionId != null)
@@ -100,7 +118,7 @@ namespace Web.Controllers.Api
             var existingIdSet = existingExternalIds.ToHashSet();
 
             var added = 0;
-            foreach (var transaction in fetched.Transactions)
+            foreach (var transaction in fetched)
             {
                 var externalId = transaction.TransactionId ?? transaction.EntryReference;
 

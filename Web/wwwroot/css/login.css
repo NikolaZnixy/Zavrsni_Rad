@@ -1,0 +1,179 @@
+/* Login page - only loaded on /Identity/Account/Login. */
+
+.login-hero {
+  display: flex;
+  align-items: center;
+  gap: 56px;
+  min-height: calc(100vh - 160px);
+  flex-wrap: wrap;
+}
+
+.login-card {
+  flex: 0 0 400px;
+  max-width: 400px;
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  padding: 32px;
+  position: relative;
+  color: var(--app-glass-text);
+}
+
+.login-card-title {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.login-card-subtitle {
+  margin: 0 0 24px;
+  color: var(--app-glass-text-muted);
+  font-size: 0.9rem;
+}
+
+.login-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background-color: #ffffff;
+  color: #3c4043;
+  border: none;
+  border-radius: 999px;
+  padding: 11px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow .15s ease, background-color .15s ease;
+}
+
+.login-google-btn:hover {
+  background-color: #f5f5f5;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+}
+
+.login-google-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: var(--app-glass-text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--app-glass-border);
+}
+
+.login-field {
+  margin-bottom: 16px;
+}
+
+.login-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: var(--app-glass-text-muted);
+}
+
+.login-input {
+  width: 100%;
+  background-color: var(--app-surface-hover);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--app-text);
+  font-size: 0.9rem;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #4dabf7;
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.25);
+}
+
+.login-input::placeholder {
+  color: var(--app-text-muted);
+}
+
+.login-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  color: var(--app-glass-text-muted);
+}
+
+.login-submit-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 18px;
+  font-size: 0.9rem;
+}
+
+.login-links {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.login-links a {
+  color: var(--app-glass-link);
+  text-decoration: none;
+}
+
+.login-links a:hover {
+  text-decoration: underline;
+}
+
+.login-copy {
+  flex: 1 1 360px;
+  min-width: 280px;
+}
+
+/* Sizing-only override on top of the shared .page-title treatment (font-weight, uppercase,
+   line-height) - this is the oversized marketing headline, .page-title elsewhere is a smaller step. */
+.login-copy-title {
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.login-copy-subtitle {
+  margin: 0;
+  max-width: 420px;
+  font-size: 1.05rem;
+  color: var(--app-text-muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 860px) {
+  .login-hero {
+    flex-direction: column-reverse;
+    gap: 32px;
+    padding: 24px 0;
+  }
+
+  .login-card {
+    flex-basis: auto;
+    width: 100%;
+    max-width: 440px;
+  }
+}

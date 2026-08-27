@@ -1,9 +1,11 @@
 @using Data.Model
+@using Data.Model.Data
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<AppUser> SignInManager
 @{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    var isAdmin = User.IsInRole(Constants.AppRoles.ADMIN);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -15,8 +17,10 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Web.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
+    <div id="particles-background"></div>
     <div class="app-shell">
         <nav class="app-sidebar" aria-label="Primary">
             <ul class="app-sidebar-nav">
@@ -49,21 +53,38 @@
                         <i class="fa-solid fa-user-shield"></i>
                     </a>
                 </li>
+                @if (isAdmin)
+                {
+                    <li class="app-sidebar-admin">
+                        <a class="app-sidebar-link @(currentController == "Admin" ? "active" : "")"
+                           asp-controller="Admin" asp-action="Index" title="Admin">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </a>
+                    </li>
+                }
             </ul>
         </nav>
 
-        <div class="app-profile dropdown">
-            <button class="app-profile-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
-                <i class="fa-solid fa-user"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end app-profile-menu">
-                <partial name="_LoginPartial" />
-            </ul>
-        </div>
+        <div class="app-content">
+            <header class="app-topbar">
+                <div class="app-profile dropdown">
+                    @if (isAdmin)
+                    {
+                        <span class="app-admin-badge">Admin</span>
+                    }
+                    <button class="app-profile-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+                        <i class="fa-solid fa-user"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end app-profile-menu">
+                        <partial name="_LoginPartial" />
+                    </ul>
+                </div>
+            </header>
 
-        <main class="app-main" role="main">
-            @RenderBody()
-        </main>
+            <main class="app-main" role="main">
+                @RenderBody()
+            </main>
+        </div>
     </div>
 
     <footer class="border-top footer text-muted">
@@ -73,6 +94,8 @@
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/particles.js/particles.min.js"></script>
+    <script src="~/js/particles-background.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -1,11 +1,31 @@
 :root {
-  --app-bg: #151515;
+  --app-bg: #1e1f26;
   --app-surface: #202020;
   --app-surface-hover: #2a2a2a;
   --app-text: #f5f5f5;
   --app-text-muted: #9a9a9a;
   --app-active-bg: #ffffff;
   --app-active-text: #202020;
+
+  /* Glass treatment for panel-level "floating" containers over the particle background. */
+  --app-glass-bg: rgba(32, 32, 32, 0.62);
+  --app-glass-blur: blur(14px) saturate(140%);
+  --app-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+
+  /* Text/icon/border colors for content that lives directly on --app-glass-bg - same as the
+     plain dark tokens, kept as separate names since several stylesheets reference them. */
+  --app-glass-text: var(--app-text);
+  --app-glass-text-muted: var(--app-text-muted);
+  --app-glass-link: #4dabf7;
+  --app-glass-hover-bg: var(--app-surface-hover);
+  --app-glass-border: rgba(255, 255, 255, 0.08);
+}
+
+#particles-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--app-bg);
 }
 
 html {
@@ -30,7 +50,10 @@ html {
 
 body {
   margin-bottom: 60px;
-  background-color: var(--app-bg);
+  /* Transparent, not var(--app-bg): body's own background is an unpositioned box, which paints ABOVE
+     negative z-index descendants (see #particles-background) regardless of DOM ancestry - an opaque
+     body background here was hiding the particles entirely. html's background-color is the real fallback. */
+  background-color: transparent;
   color: var(--app-text);
 }
 
@@ -38,7 +61,19 @@ a {
   color: #4dabf7;
 }
 
-/* App shell: left icon-rail navigation + absolutely-positioned profile button */
+/* Shared main-page-heading treatment (bold / uppercase / tight line-height), reused on every
+   page's primary <h1>/<h2>. Same family as the login hero headline (.login-copy-title), just a
+   smaller step - that one is an oversized marketing headline, this is an in-app page title. */
+.page-title {
+  margin: 0 0 20px;
+  font-size: clamp(1.5rem, 2.4vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+/* App shell: left icon-rail navigation + a full-width glass top bar holding the profile dropdown */
 
 .app-shell {
   display: flex;
@@ -51,10 +86,15 @@ a {
   width: 84px;
   margin: 16px 0 16px 16px;
   padding: 20px 0;
-  background-color: var(--app-surface);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
   border-radius: 20px;
   display: flex;
   justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 
 .app-sidebar-nav {
@@ -65,6 +105,7 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  height: 100%;
 }
 
 .app-sidebar-link {
@@ -74,15 +115,15 @@ a {
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  color: var(--app-text);
+  color: var(--app-glass-text);
   font-size: 1.15rem;
   text-decoration: none;
   transition: background-color .15s ease, color .15s ease;
 }
 
 .app-sidebar-link:hover {
-  background-color: var(--app-surface-hover);
-  color: var(--app-text);
+  background-color: var(--app-glass-hover-bg);
+  color: var(--app-glass-text);
 }
 
 .app-sidebar-link.active {
@@ -90,11 +131,59 @@ a {
   color: var(--app-active-text);
 }
 
+/* Admin link: separated from the rest of the nav, pinned to the bottom of the sidebar with a divider. */
+.app-sidebar-admin {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-glass-border);
+}
+
+.app-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 32px 24px;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 56px;
+  padding: 0 20px;
+  margin-bottom: 16px;
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 18px;
+  color: var(--app-glass-text);
+  position: relative;
+  z-index: 2;
+}
+
 .app-profile {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  z-index: 1030;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Admin indicator - a small pill sitting to the side of the profile button, instead of styling
+   the button itself. */
+.app-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: rgba(0, 240, 255, 0.15);
+  color: #00d8e8;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .app-profile-toggle {
@@ -102,8 +191,12 @@ a {
   height: 44px;
   border-radius: 50%;
   border: none;
-  background-color: var(--app-surface);
-  color: var(--app-text);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  position: relative;
+  color: var(--app-glass-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,37 +205,40 @@ a {
 
 .app-profile-toggle:hover,
 .app-profile-toggle:focus {
-  background-color: var(--app-surface-hover);
-  color: var(--app-text);
+  background-color: var(--app-glass-hover-bg);
+  color: var(--app-glass-text);
 }
 
 .app-profile-menu {
-  background-color: var(--app-surface);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
   border: none;
   border-radius: 12px;
   overflow: hidden;
   margin-top: 8px;
+  position: relative;
 }
 
 .app-profile-menu .dropdown-item,
 .app-profile-menu .dropdown-header {
-  color: var(--app-text);
+  color: var(--app-glass-text);
 }
 
 .app-profile-menu .dropdown-item:hover,
 .app-profile-menu .dropdown-item:focus {
-  background-color: var(--app-surface-hover);
-  color: var(--app-text);
+  background-color: var(--app-glass-hover-bg);
+  color: var(--app-glass-text);
 }
 
 .app-profile-menu .dropdown-divider {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--app-glass-border);
 }
 
 .app-main {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 24px 32px;
 }
 
 .border-top {
@@ -169,7 +265,10 @@ a {
   width: 96px;
   aspect-ratio: 1 / 1;
   padding: 16px;
-  background-color: var(--app-surface);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
   border: 2px solid transparent;
   border-radius: 20px;
   transition: opacity .15s ease, border-color .15s ease, transform .15s ease;
@@ -224,9 +323,14 @@ a {
 }
 
 .accounts-panel {
-  background-color: var(--app-surface);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
   border-radius: 20px;
   padding: 24px 28px;
+  position: relative;
+  color: var(--app-glass-text);
 }
 
 .accounts-panel-overview {
@@ -317,7 +421,7 @@ a {
   align-items: center;
   gap: 16px;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--app-glass-border);
   transition: opacity .15s ease;
 }
 
@@ -357,7 +461,7 @@ a {
 }
 
 .account-row-meta {
-  color: var(--app-text-muted);
+  color: var(--app-glass-text-muted);
   font-size: 0.8rem;
 }
 
@@ -483,18 +587,18 @@ a {
 .transactions-table {
   width: 100%;
   border-collapse: collapse;
-  color: var(--app-text);
+  color: var(--app-glass-text);
 }
 
 .transactions-table thead th {
   text-align: left;
   padding: 0 16px 10px 0;
-  color: var(--app-text-muted);
+  color: var(--app-glass-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--app-glass-border);
 }
 
 .transactions-table thead th:last-child {
@@ -503,7 +607,7 @@ a {
 
 .transactions-table tbody td {
   padding: 12px 16px 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--app-glass-border);
 }
 
 .transactions-table tbody td:last-child {
@@ -529,7 +633,7 @@ a {
 .transactions-empty td {
   padding: 32px 0;
   text-align: center;
-  color: var(--app-text-muted);
+  color: var(--app-glass-text-muted);
 }
 
 .transactions-empty:hover td {
@@ -560,7 +664,7 @@ a {
 /* Unsaved manual category pick - dashed outline instead of a filled pill until "Save changes" */
 .category-badge-pending {
   background-color: transparent;
-  border: 1px dashed var(--category-color, var(--app-text-muted));
+  border: 1px dashed var(--category-color, var(--app-glass-text-muted));
   padding: 2px 10px;
 }
 
@@ -628,10 +732,15 @@ a {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background-color: var(--app-surface);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
   border-radius: 20px;
   padding: 20px;
   align-self: flex-start;
+  position: relative;
+  color: var(--app-glass-text);
 }
 
 .category-legend-list {
@@ -648,7 +757,7 @@ a {
   border-radius: 10px;
   background: none;
   border: 1px solid transparent;
-  color: var(--app-text);
+  color: var(--app-glass-text);
   font-size: 0.85rem;
   text-align: left;
   cursor: pointer;
@@ -656,12 +765,12 @@ a {
 }
 
 .category-legend-item:hover {
-  background-color: var(--app-surface-hover);
+  background-color: var(--app-glass-hover-bg);
 }
 
 .category-legend-item.selected {
-  background-color: var(--app-surface-hover);
-  border-color: var(--category-color, rgba(255, 255, 255, 0.3));
+  background-color: var(--app-glass-hover-bg);
+  border-color: var(--category-color, var(--app-glass-text));
 }
 
 .category-legend-name {
@@ -674,7 +783,7 @@ a {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: var(--app-text-muted);
+  color: var(--app-glass-text-muted);
   font-size: 0.75rem;
   line-height: 1.4;
   opacity: .7;
@@ -686,16 +795,39 @@ a {
   flex-shrink: 0;
 }
 
+/* Shine highlight for every glass panel - a soft diagonal light streak across the top-left corner.
+   Applies across pages: the calendar/statistics/admin cards live in their own page-scoped stylesheets,
+   but this selector list still matches them wherever they render since site.css loads everywhere. */
+.app-sidebar::before,
+.app-topbar::before,
+.app-profile-toggle::before,
+.app-profile-menu::before,
+.bank-picker-item::before,
+.accounts-panel::before,
+.category-legend::before,
+.calendar-card::before,
+.chart-card::before,
+.stats-empty-state::before,
+.health-card::before,
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 45%);
+  pointer-events: none;
+}
+
 .category-legend-actions {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--app-glass-border);
 }
 
 .category-pending-count {
-  color: var(--app-text-muted);
+  color: var(--app-glass-text-muted);
   font-size: 0.75rem;
 }
 
@@ -716,5 +848,5 @@ a {
 }
 
 .row-pending-change {
-  box-shadow: inset 3px 0 0 0 var(--pending-color, var(--app-text-muted));
+  box-shadow: inset 3px 0 0 0 var(--pending-color, var(--app-glass-text-muted));
 }

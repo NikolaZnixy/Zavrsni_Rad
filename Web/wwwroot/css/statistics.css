@@ -1,0 +1,85 @@
+/* Statistics page - only loaded on /Statistics. */
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stats-title {
+  margin: 0;
+}
+
+.stats-account-form {
+  display: inline-flex;
+}
+
+.stats-account-select {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+
+.stats-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 16px;
+  text-align: center;
+  color: var(--app-glass-text-muted);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  position: relative;
+}
+
+.stats-empty-state i {
+  font-size: 1.8rem;
+}
+
+.chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chart-card {
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  padding: 20px 24px;
+  position: relative;
+  color: var(--app-glass-text);
+}
+
+.chart-card-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.chart-card-subtitle {
+  margin: 0 0 16px;
+  font-size: 0.8rem;
+  color: var(--app-glass-text-muted);
+}
+
+.chart-card-canvas-wrap {
+  position: relative;
+  height: 280px;
+}
+
+.chart-card-canvas-wrap.is-tall {
+  height: 340px;
+}

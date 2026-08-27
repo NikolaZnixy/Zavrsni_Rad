@@ -1,4 +1,23 @@
-﻿
 @{
     Layout = "_Layout";
+    ViewData["Title"] = "Calendar";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
+}
+
+<h1 class="page-title">Calendar</h1>
+
+@await Component.InvokeAsync("Calendar", new
+{
+    accountId = ViewBag.AccountId as Guid?,
+    year = ViewBag.Year as int?,
+    month = ViewBag.Month as int?,
+    openDay = ViewBag.Day as int?,
+    compact = false
+})
+
+@section Scripts {
+    <script src="~/js/calendar.js" asp-append-version="true"></script>
 }

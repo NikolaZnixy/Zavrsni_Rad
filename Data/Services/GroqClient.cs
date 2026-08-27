@@ -25,6 +25,33 @@ namespace Data.Services
         }
 
         /// <summary>
+        /// Lightweight health check - GET /models is the standard OpenAI-compatible "ping": confirms the
+        /// API key and connectivity without spending any completion tokens.
+        /// </summary>
+        public async Task<Data.Model.Data.ServiceHealthResult> PingAsync()
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var response = await _httpClient.GetAsync("models");
+                stopwatch.Stop();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    return new Data.Model.Data.ServiceHealthResult { Healthy = false, Message = $"{(int)response.StatusCode}: {body}", LatencyMs = stopwatch.ElapsedMilliseconds };
+                }
+
+                return new Data.Model.Data.ServiceHealthResult { Healthy = true, Message = "Reachable, API key valid.", LatencyMs = stopwatch.ElapsedMilliseconds };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                return new Data.Model.Data.ServiceHealthResult { Healthy = false, Message = ex.Message, LatencyMs = stopwatch.ElapsedMilliseconds };
+            }
+        }
+
+        /// <summary>
         /// Asks Groq to categorize a batch of transactions into one of <paramref name="categoryNames"/>.
         /// Returns null if the model's response couldn't be parsed at all - callers should treat that
         /// the same as "nothing categorized this round" rather than failing the whole request.
