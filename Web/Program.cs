@@ -49,3 +49,8 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+
+// Exposes the implicit top-level Program class as a public type so the test project's
+// WebApplicationFactory<Program> (used for integration tests, e.g. auth/routing checks
+// against a real HTTP pipeline) can reference it.
+public partial class Program { }
