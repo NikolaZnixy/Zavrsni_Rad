@@ -1,18 +1,112 @@
+@using Data.Model
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<AppUser> SignInManager
 @{
     ViewData["Title"] = "Home";
+    var signedIn = SignInManager.IsSignedIn(User);
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/home.css" asp-append-version="true" />
 }
 
-<h1 class="page-title">Dashboard</h1>
+<div class="home-wrap">
+    <section class="home-hero">
+        <h1 class="page-title home-hero-title">Track every transaction, in one place.</h1>
+        <img src="~/images/logo.svg" alt="Insightify" class="home-hero-logo" />
+        <p class="home-hero-subtitle">
+            Link your bank accounts, watch spending land on a daily calendar, and let AI sort it into
+            categories - so you can see where your money goes without the spreadsheet.
+        </p>
+        <div class="home-hero-actions">
+            @if (signedIn)
+            {
+                <a class="btn-pill btn-pill-primary" asp-controller="Dashboard" asp-action="Index">
+                    <i class="fa-solid fa-gauge"></i>
+                    Go to your dashboard
+                </a>
+            }
+            else
+            {
+                <a class="btn-pill btn-pill-primary" id="get-started" asp-area="Identity" asp-page="/Account/Register">
+                    Get started
+                </a>
+                <a class="btn-pill btn-pill-outline" id="log-in" asp-area="Identity" asp-page="/Account/Login">
+                    Log in
+                </a>
+            }
+        </div>
+    </section>
 
-@await Component.InvokeAsync("Calendar", new
-{
-    accountId = (Guid?)null,
-    year = (int?)null,
-    month = (int?)null,
-    openDay = (int?)null,
-    compact = true
-})
+    <section class="home-features" aria-label="What you can do">
+        <div class="feature-card">
+            <div class="feature-card-icon"><i class="fa-solid fa-credit-card"></i></div>
+            <h2 class="feature-card-title">Connect your bank</h2>
+            <p class="feature-card-desc">
+                Securely link accounts through Enable Banking's open-banking network and pull in
+                transactions automatically - no manual entry.
+            </p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-icon"><i class="fa-solid fa-calendar"></i></div>
+            <h2 class="feature-card-title">Spending calendar</h2>
+            <p class="feature-card-desc">
+                See every day's spending at a glance on a heatmap calendar, with recurring payments
+                and income flagged automatically.
+            </p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-icon"><i class="fa-solid fa-chart-bar"></i></div>
+            <h2 class="feature-card-title">Statistics &amp; insights</h2>
+            <p class="feature-card-desc">
+                Track monthly trends, top merchants, and category breakdowns so you know exactly
+                where your money is going.
+            </p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-icon feature-card-icon-ai"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <h2 class="feature-card-title">AI categorization</h2>
+            <p class="feature-card-desc">
+                Let AI sort your transactions into categories in one click, then fine-tune any pick
+                yourself.
+            </p>
+        </div>
+    </section>
+
+    <section class="home-steps" aria-label="How it works">
+        <div class="home-step">
+            <span class="home-step-number">1</span>
+            <div>
+                <h3 class="home-step-title">Connect</h3>
+                <p class="home-step-desc">Link a bank account in a few clicks.</p>
+            </div>
+        </div>
+        <div class="home-step">
+            <span class="home-step-number">2</span>
+            <div>
+                <h3 class="home-step-title">Sync</h3>
+                <p class="home-step-desc">Transactions land on your calendar automatically.</p>
+            </div>
+        </div>
+        <div class="home-step">
+            <span class="home-step-number">3</span>
+            <div>
+                <h3 class="home-step-title">Understand</h3>
+                <p class="home-step-desc">Categories and charts show where it all went.</p>
+            </div>
+        </div>
+    </section>
+
+    @if (!signedIn)
+    {
+        <section class="home-cta-banner">
+            <div>
+                <h2 class="home-cta-title">Ready to see where your money goes?</h2>
+                <p class="home-cta-subtitle">It takes a minute to link your first account.</p>
+            </div>
+            <a class="btn-pill btn-pill-primary" asp-area="Identity" asp-page="/Account/Register">
+                Create a free account
+            </a>
+        </section>
+    }
+</div>

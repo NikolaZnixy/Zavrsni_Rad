@@ -131,6 +131,13 @@ a {
   color: var(--app-active-text);
 }
 
+/* Home link: separated from the rest of the nav, pinned to the top of the sidebar with a divider. */
+.app-sidebar-home {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--app-glass-border);
+}
+
 /* Admin link: separated from the rest of the nav, pinned to the bottom of the sidebar with a divider. */
 .app-sidebar-admin {
   margin-top: auto;
@@ -146,21 +153,48 @@ a {
   padding: 16px 32px 24px;
 }
 
+/* Just a layout slot now, not a panel - the "container" look (glass fill/blur/shadow/radius)
+   was dropped, but the height/spacing it used to occupy is kept so nothing else shifts. */
 .app-topbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  min-height: 56px;
+  justify-content: space-between;
+  min-height: 72px;
   padding: 0 20px;
   margin-bottom: 16px;
-  background-color: var(--app-glass-bg);
-  backdrop-filter: var(--app-glass-blur);
-  -webkit-backdrop-filter: var(--app-glass-blur);
-  box-shadow: var(--app-glass-edge);
-  border-radius: 18px;
   color: var(--app-glass-text);
   position: relative;
   z-index: 2;
+}
+
+.app-topbar-left,
+.app-topbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-topbar-logo {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.app-topbar-cta {
+  padding: 13px 28px;
+  font-size: 1rem;
+}
+
+/* Narrow viewports: the wordmark logo is wide, so shrink it before it collides with the
+   profile button on the other side of the bar. */
+@media (max-width: 420px) {
+  .app-topbar {
+    padding: 0 12px;
+  }
+
+  .app-topbar-logo {
+    height: 30px;
+  }
 }
 
 .app-profile {
@@ -187,8 +221,8 @@ a {
 }
 
 .app-profile-toggle {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   border: none;
   background-color: var(--app-glass-bg);
@@ -200,7 +234,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.15rem;
 }
 
 .app-profile-toggle:hover,
@@ -465,12 +499,41 @@ a {
   font-size: 0.8rem;
 }
 
+.account-row-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .account-row-action {
   flex: 0 0 auto;
 }
 
 .account-row-expired .account-row-action {
   pointer-events: none;
+}
+
+.account-row-remove {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-glass-text-muted);
+  border-color: var(--app-glass-border);
+}
+
+.account-row-remove:hover {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+.account-row-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .accounts-tab-content {
@@ -799,7 +862,6 @@ a {
    Applies across pages: the calendar/statistics/admin cards live in their own page-scoped stylesheets,
    but this selector list still matches them wherever they render since site.css loads everywhere. */
 .app-sidebar::before,
-.app-topbar::before,
 .app-profile-toggle::before,
 .app-profile-menu::before,
 .bank-picker-item::before,
@@ -809,7 +871,9 @@ a {
 .chart-card::before,
 .stats-empty-state::before,
 .health-card::before,
-.login-card::before {
+.login-card::before,
+.feature-card::before,
+.home-cta-banner::before {
   content: "";
   position: absolute;
   inset: 0;

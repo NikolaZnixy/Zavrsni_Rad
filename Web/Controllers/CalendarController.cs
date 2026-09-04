@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Web.Controllers
 {
     [Authorize]
+    [Route("Dashboard/[controller]/{action=Index}/{id?}")]
     public class CalendarController : Controller
     {
         public IActionResult Index(Guid? accountId, int? year, int? month, int? day)

@@ -80,6 +80,26 @@ namespace Web.Controllers.Api
             return RedirectToAction("Accounts", "Transactions");
         }
 
+        [HttpDelete("{linkedAccountId}")]
+        [Authorize]
+        public async Task<IActionResult> Disconnect(Guid linkedAccountId)
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var account = await _db.LinkedBankAccounts
+                .FirstOrDefaultAsync(a => a.Id == linkedAccountId && a.UserId == userId);
+
+            if (account is null)
+                return NotFound();
+
+            var transactions = _db.BankAccountTransactions.Where(t => t.LinkedBankAccountId == linkedAccountId);
+            _db.BankAccountTransactions.RemoveRange(transactions);
+            _db.LinkedBankAccounts.Remove(account);
+
+            await _db.SaveChangesAsync();
+
+            return Ok();
+        }
+
         [HttpPost("transactions/{linkedAccountId}/sync")]
         [Authorize]
         public async Task<IActionResult> SyncTransactions(Guid linkedAccountId)

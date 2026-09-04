@@ -6,6 +6,10 @@
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
     var isAdmin = User.IsInRole(Constants.AppRoles.ADMIN);
+    var isSignedIn = SignInManager.IsSignedIn(User);
+    // Every page reachable from the floating sidebar lives under /Dashboard/ - the sidebar itself
+    // only makes sense once the user is there, so it's gated on the same prefix.
+    var isDashboard = Context.Request.Path.StartsWithSegments("/Dashboard");
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -22,62 +26,90 @@
 <body>
     <div id="particles-background"></div>
     <div class="app-shell">
-        <nav class="app-sidebar" aria-label="Primary">
-            <ul class="app-sidebar-nav">
-                <li>
-                    <a class="app-sidebar-link @(currentController == "Transactions" ? "active" : "")"
-                       asp-controller="Transactions" asp-action="Accounts" title="Accounts">
-                        <i class="fa-solid fa-credit-card"></i>
-                    </a>
-                </li>
-                                <li>
-                    <a class="app-sidebar-link @(currentController == "Statistics" ? "active" : "")"
-                       asp-controller="Statistics" asp-action="Index" title="Statistics">
-                        <i class="fa-solid fa-chart-bar"></i>
-                    </a>
-                </li>
-                <li>
-                    <a class="app-sidebar-link @(currentController == "Calendar" ? "active" : "")"
-                       asp-controller="Calendar" asp-action="Index" title="Calendar">
-                        <i class="fa-solid fa-calendar"></i>
-                    </a>
-                </li>
-                <li>
-                    <a class="app-sidebar-link" href="#" title="Help">
-                        <i class="fa-solid fa-circle-question"></i>
-                    </a>
-                </li>
-                <li>
-                    <a class="app-sidebar-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")"
-                       asp-controller="Home" asp-action="Privacy" title="Privacy">
-                        <i class="fa-solid fa-user-shield"></i>
-                    </a>
-                </li>
-                @if (isAdmin)
-                {
-                    <li class="app-sidebar-admin">
-                        <a class="app-sidebar-link @(currentController == "Admin" ? "active" : "")"
-                           asp-controller="Admin" asp-action="Index" title="Admin">
-                            <i class="fa-solid fa-shield-halved"></i>
+        @if (isDashboard)
+        {
+            <nav class="app-sidebar" aria-label="Primary">
+                <ul class="app-sidebar-nav">
+                    <li class="app-sidebar-home">
+                        <a class="app-sidebar-link @(currentController == "Home" && currentAction == "Index" ? "active" : "")"
+                           asp-controller="Home" asp-action="Index" title="Home">
+                            <i class="fa-solid fa-house"></i>
                         </a>
                     </li>
-                }
-            </ul>
-        </nav>
+                    <li>
+                        <a class="app-sidebar-link @(currentController == "Dashboard" ? "active" : "")"
+                           asp-controller="Dashboard" asp-action="Index" title="Dashboard">
+                            <i class="fa-solid fa-gauge"></i>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="app-sidebar-link @(currentController == "Transactions" ? "active" : "")"
+                           asp-controller="Transactions" asp-action="Accounts" title="Accounts">
+                            <i class="fa-solid fa-credit-card"></i>
+                        </a>
+                    </li>
+                                    <li>
+                        <a class="app-sidebar-link @(currentController == "Statistics" ? "active" : "")"
+                           asp-controller="Statistics" asp-action="Index" title="Statistics">
+                            <i class="fa-solid fa-chart-bar"></i>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="app-sidebar-link @(currentController == "Calendar" ? "active" : "")"
+                           asp-controller="Calendar" asp-action="Index" title="Calendar">
+                            <i class="fa-solid fa-calendar"></i>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="app-sidebar-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")"
+                           asp-controller="Home" asp-action="Privacy" title="Privacy">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </a>
+                    </li>
+                    @if (isAdmin)
+                    {
+                        <li class="app-sidebar-admin">
+                            <a class="app-sidebar-link @(currentController == "Admin" ? "active" : "")"
+                               asp-controller="Admin" asp-action="Index" title="Admin">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
 
         <div class="app-content">
             <header class="app-topbar">
-                <div class="app-profile dropdown">
-                    @if (isAdmin)
+                <div class="app-topbar-left">
+                    @if (isDashboard)
                     {
-                        <span class="app-admin-badge">Admin</span>
+                        <a asp-controller="Dashboard" asp-action="Index" title="Insightify">
+                            <img src="~/images/logo.svg" alt="Insightify" class="app-topbar-logo" />
+                        </a>
                     }
-                    <button class="app-profile-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
-                        <i class="fa-solid fa-user"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end app-profile-menu">
-                        <partial name="_LoginPartial" />
-                    </ul>
+                    else if (isSignedIn)
+                    {
+                        <a class="btn-pill btn-pill-outline app-topbar-cta" asp-controller="Dashboard" asp-action="Index">
+                            <i class="fa-solid fa-gauge"></i>
+                            Dashboard
+                        </a>
+                    }
+                </div>
+
+                <div class="app-topbar-right">
+                    <div class="app-profile dropdown">
+                        @if (isAdmin)
+                        {
+                            <span class="app-admin-badge">Admin</span>
+                        }
+                        <button class="app-profile-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+                            <i class="fa-solid fa-user"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end app-profile-menu">
+                            <partial name="_LoginPartial" />
+                        </ul>
+                    </div>
                 </div>
             </header>
 

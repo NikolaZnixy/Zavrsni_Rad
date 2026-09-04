@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Web.Controllers
 {
     [Authorize(Roles = Constants.AppRoles.ADMIN)]
+    [Route("Dashboard/[controller]/{action=Index}/{id?}")]
     public class AdminController : Controller
     {
         private readonly EnableBankingClient _enableBankingClient;

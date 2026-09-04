@@ -38,18 +38,23 @@
                             <div class="account-row-name">@account.DisplayName</div>
                             <div class="account-row-meta">@account.AspspName (@account.Country)</div>
                         </div>
-                        @if (isExpired)
-                        {
-                            <span class="btn-pill account-row-action" aria-disabled="true" tabindex="-1">
-                                View Transactions <i class="fa-solid fa-chevron-right"></i>
-                            </span>
-                        }
-                        else
-                        {
-                            <a class="btn-pill account-row-action" href="/Transactions/List?accountId=@account.Id">
-                                View Transactions <i class="fa-solid fa-chevron-right"></i>
-                            </a>
-                        }
+                        <div class="account-row-actions">
+                            @if (isExpired)
+                            {
+                                <span class="btn-pill account-row-action" aria-disabled="true" tabindex="-1">
+                                    View Transactions <i class="fa-solid fa-chevron-right"></i>
+                                </span>
+                            }
+                            else
+                            {
+                                <a class="btn-pill account-row-action" asp-controller="Transactions" asp-action="List" asp-route-accountId="@account.Id">
+                                    View Transactions <i class="fa-solid fa-chevron-right"></i>
+                                </a>
+                            }
+                            <button type="button" class="btn-pill-outline account-row-remove" data-account-id="@account.Id" data-account-name="@account.DisplayName" title="Remove this bank connection">
+                                <i class="fa-solid fa-link-slash"></i>
+                            </button>
+                        </div>
                     </div>
                 }
             </div>
@@ -159,6 +164,24 @@
         linkDrawerBackdrop.addEventListener("click", closeLinkDrawer);
         document.addEventListener("keydown", e => {
             if (e.key === "Escape") closeLinkDrawer();
+        });
+
+        document.querySelectorAll(".account-row-remove").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const accountId = btn.dataset.accountId;
+                const accountName = btn.dataset.accountName;
+                if (!confirm(`Remove the connection to "${accountName}"? This will delete its synced transactions.`)) return;
+
+                btn.disabled = true;
+                try {
+                    const response = await fetch(`/api/bank/${accountId}`, { method: "DELETE" });
+                    if (!response.ok) throw new Error("Request failed");
+                    window.location.reload();
+                } catch {
+                    alert("Couldn't remove this account. Please try again.");
+                    btn.disabled = false;
+                }
+            });
         });
     </script>
 }

@@ -1,0 +1,237 @@
+/* Identity "Manage your account" pages - only loaded under /Identity/Account/Manage/*. */
+
+.manage-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.manage-nav {
+  flex: 0 0 240px;
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  padding: 16px;
+  color: var(--app-glass-text);
+}
+
+.manage-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.manage-nav-link {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--app-glass-text-muted);
+  text-decoration: none;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.manage-nav-link:hover {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.manage-nav-link.active {
+  background-color: var(--app-active-bg);
+  color: var(--app-active-text);
+}
+
+.manage-content {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.manage-card {
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  padding: 28px 32px;
+  color: var(--app-glass-text);
+  max-width: 480px;
+}
+
+.manage-card-title {
+  margin: 0 0 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.manage-card-title:last-child {
+  margin-bottom: 0;
+}
+
+.manage-status {
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.manage-status-success {
+  background-color: rgba(64, 192, 87, 0.15);
+  color: #69db7c;
+  border: 1px solid rgba(64, 192, 87, 0.3);
+}
+
+.manage-status-danger {
+  background-color: rgba(255, 107, 107, 0.15);
+  color: #ff8787;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.manage-status-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.manage-status-close:hover {
+  opacity: 1;
+}
+
+.manage-field {
+  margin-bottom: 16px;
+}
+
+.manage-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: var(--app-glass-text-muted);
+}
+
+.manage-field .login-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.manage-field-verified {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.manage-field-verified .login-input {
+  flex: 1 1 auto;
+}
+
+.manage-verified-badge {
+  flex: 0 0 auto;
+  color: #69db7c;
+  font-weight: 700;
+}
+
+.manage-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 6px;
+  color: var(--app-glass-link);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.manage-link-btn:hover {
+  text-decoration: underline;
+}
+
+.manage-submit-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 18px;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.manage-copy {
+  color: var(--app-glass-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.manage-danger-note {
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  background-color: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: var(--app-glass-text);
+}
+
+.manage-danger-note strong {
+  color: #ff8787;
+}
+
+.btn-pill-danger {
+  background-color: rgba(255, 107, 107, 0.15);
+  color: #ff8787;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.btn-pill-danger:hover {
+  background-color: rgba(255, 107, 107, 0.28);
+  color: #ffa8a8;
+}
+
+.manage-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 4px;
+}
+
+.manage-table td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--app-glass-border);
+  font-size: 0.88rem;
+}
+
+.manage-table tr:last-child td {
+  border-bottom: none;
+}
+
+@media (max-width: 860px) {
+  .manage-layout {
+    flex-direction: column;
+  }
+
+  .manage-nav {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  .manage-card {
+    max-width: 100%;
+    width: 100%;
+  }
+}

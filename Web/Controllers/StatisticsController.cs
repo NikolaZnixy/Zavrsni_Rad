@@ -9,6 +9,7 @@ using Web.Models;
 namespace Web.Controllers
 {
     [Authorize]
+    [Route("Dashboard/[controller]/{action=Index}/{id?}")]
     public class StatisticsController : Controller
     {
         private readonly AppDbContext _db;

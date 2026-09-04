@@ -1,0 +1,10 @@
+@model string
+
+@if (!String.IsNullOrEmpty(Model))
+{
+    var statusMessageClass = Model.StartsWith("Error") ? "manage-status-danger" : "manage-status-success";
+    <div class="manage-status @statusMessageClass" role="alert">
+        <span>@Model</span>
+        <button type="button" class="manage-status-close" onclick="this.closest('.manage-status').remove()" aria-label="Close">&times;</button>
+    </div>
+}
