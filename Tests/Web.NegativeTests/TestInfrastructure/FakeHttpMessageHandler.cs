@@ -3,16 +3,21 @@ using System.Net;
 namespace Web.NegativeTests.TestInfrastructure
 {
     /// <summary>
-    /// Stands in for the network when testing EnableBankingClient/GroqClient: instead of hitting the
-    /// real Enable Banking or Groq API, HttpClient is pointed at this handler so tests can simulate
+    /// Stands in for the network when testing external HTTP services: instead of hitting a real API,
+    /// HttpClient is pointed at this handler so tests can simulate
     /// "the service is unreachable" (an exception) or "the service returned an error" (a non-2xx
     /// response) deterministically, without any real HTTP call ever leaving the machine.
     /// </summary>
     public sealed class FakeHttpMessageHandler : HttpMessageHandler
     {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _responder;
 
         private FakeHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
+        {
+            _responder = (request, _) => Task.FromResult(responder(request));
+        }
+
+        private FakeHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responder)
         {
             _responder = responder;
         }
@@ -28,12 +33,19 @@ namespace Web.NegativeTests.TestInfrastructure
                 Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
             });
 
+        public static FakeHttpMessageHandler Responding(Func<HttpRequestMessage, HttpResponseMessage> responder) =>
+            new(responder);
+
+        public static FakeHttpMessageHandler RespondingAsync(
+            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responder) =>
+            new(responder);
+
         /// <summary>Simulates the service being completely unreachable - DNS failure, connection refused, timeout, etc.</summary>
         public static FakeHttpMessageHandler ThrowingConnectionFailure() =>
             new(_ => throw new HttpRequestException("Simulated failure: the service could not be reached."));
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-            Task.FromResult(_responder(request));
+            _responder(request, cancellationToken);
 
         public static HttpClient BuildClient(FakeHttpMessageHandler handler, Uri baseAddress) =>
             new(handler) { BaseAddress = baseAddress };

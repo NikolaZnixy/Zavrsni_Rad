@@ -46,12 +46,23 @@ namespace Web
             return services;
         }
 
-        public static IServiceCollection AddGroq(this IServiceCollection services)
+        public static IServiceCollection AddCategorization(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddHttpClient<GroqClient>(client =>
+            var apiKey = configuration["OpenAI:ApiKey"] ?? configuration["OPENAI_API_KEY"];
+            if (string.IsNullOrWhiteSpace(apiKey))
             {
-                client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+                services.AddTransient<Data.Model.Interfaces.ICategorizationService, NoOpCategorizationService>();
+                return services;
+            }
+
+            services.AddHttpClient<OpenAiCategorization>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.openai.com/v1/");
             });
+            services.AddTransient<Data.Model.Interfaces.IAiCategorization>(
+                provider => provider.GetRequiredService<OpenAiCategorization>());
+            services.AddTransient<Data.Model.Interfaces.ICategorizationService>(
+                provider => provider.GetRequiredService<Data.Model.Interfaces.IAiCategorization>());
 
             return services;
         }

@@ -1,5 +1,6 @@
 using Data.Model;
 using Data.Model.Data;
+using Data.Model.Interfaces;
 using Data.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Text.Json;
-using static Data.Model.Data.GroqDtos;
+using static Data.Model.Data.CategorizationDtos;
 
 namespace Web.Controllers.Api
 {
@@ -16,15 +17,15 @@ namespace Web.Controllers.Api
     public class BankController : ControllerBase
     {
         private readonly EnableBankingClient _client;
-        private readonly GroqClient _groqClient;
+        private readonly ICategorizationService _categorizationService;
         private readonly AppDbContext _db;
         private readonly UserManager<AppUser> _userManager;
         private readonly IWebHostEnvironment _env;
 
-        public BankController(EnableBankingClient client, GroqClient groqClient, AppDbContext db, UserManager<AppUser> userManager, IWebHostEnvironment env)
+        public BankController(EnableBankingClient client, ICategorizationService categorizationService, AppDbContext db, UserManager<AppUser> userManager, IWebHostEnvironment env)
         {
             _client = client;
-            _groqClient = groqClient;
+            _categorizationService = categorizationService;
             _db = db;
             _userManager = userManager;
             _env = env;
@@ -181,10 +182,8 @@ namespace Web.Controllers.Api
         }
 
         /// <summary>
-        /// Sends every still-uncategorized transaction for this account to Groq and applies whatever
-        /// categories come back after validating them. Never re-categorizes transactions that already
-        /// have a category (AI-assigned or otherwise) - only fills in the blanks. User-triggered only,
-        /// not run automatically on sync.
+        /// Categorizes every still-uncategorized transaction through the configured categorization service.
+        /// The service may use AI, rules, or no external provider at all.
         /// </summary>
         [HttpPost("transactions/{linkedAccountId}/categorize")]
         [Authorize]
@@ -209,47 +208,81 @@ namespace Web.Controllers.Api
             var categoryNames = categories.Select(c => c.Name).ToList();
 
             var categorized = 0;
+            var knownCategoriesByDescription = (await _db.BankAccountTransactions
+                .Where(t => t.LinkedBankAccountId == linkedAccountId
+                    && t.TransactionCategoryId != null
+                    && t.Description != null)
+                .Select(t => new { t.Description, t.TransactionCategoryId })
+                .ToListAsync())
+                .GroupBy(t => NormalizeDescription(t.Description!), StringComparer.Ordinal)
+                .Where(group => group.Select(t => t.TransactionCategoryId).Distinct().Count() == 1)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.First().TransactionCategoryId!.Value,
+                    StringComparer.Ordinal);
 
-            foreach (var batch in uncategorized.Chunk(60))
+            var unresolved = new List<BankAccountTransaction>();
+            foreach (var transaction in uncategorized)
             {
-                var payload = batch.Select(t => new TransactionForCategorization
+                if (string.IsNullOrWhiteSpace(transaction.Description))
+                    continue;
+
+                if (knownCategoriesByDescription.TryGetValue(NormalizeDescription(transaction.Description), out var categoryId))
                 {
-                    Id = t.Id,
-                    Description = t.Description,
-                    Amount = t.Amount,
-                    Currency = t.Currency,
-                    Date = t.TransactionDate.ToString("yyyy-MM-dd")
+                    transaction.TransactionCategoryId = categoryId;
+                    categorized++;
+                }
+                else
+                {
+                    unresolved.Add(transaction);
+                }
+            }
+
+            // One representative per merchant description produces the same deterministic category while
+            // avoiding repeated prompt and response tokens for duplicate bank entries.
+            var unresolvedGroups = unresolved
+                .GroupBy(t => NormalizeDescription(t.Description!), StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var batch in unresolvedGroups.Chunk(60))
+            {
+                var payload = batch.Select(group =>
+                {
+                    var transaction = group.First();
+                    return new CategorizationInput(transaction.Id, transaction.Description!, transaction.Amount);
                 }).ToList();
 
-                GroqCategorizationResponse? result;
+                IReadOnlyList<CategorizationResult> result;
                 try
                 {
-                    result = await _groqClient.CategorizeTransactionsAsync(payload, categoryNames);
+                    result = await _categorizationService.CategorizeAsync(
+                        payload,
+                        categoryNames,
+                        HttpContext.RequestAborted);
                 }
                 catch (HttpRequestException)
                 {
-                    // Groq call failed for this batch - leave it uncategorized rather than failing the whole request.
+                    // A remote categorizer failed for this batch; preserve uncategorized transactions.
                     continue;
                 }
 
-                if (result is null)
-                    continue;
+                var batchById = batch.ToDictionary(group => group.First().Id);
 
-                var batchById = batch.ToDictionary(t => t.Id);
-
-                foreach (var item in result.Categorizations)
+                foreach (var item in result)
                 {
-                    // Ignore ids the model hallucinated (anything we didn't actually send it) and
-                    // categories that aren't an exact match to the known set - never guess-map them.
+                    // Ignore ids not present in this batch and categories outside the known set.
                     if (item.Category is null)
                         continue;
-                    if (!batchById.TryGetValue(item.Id, out var transaction))
+                    if (!batchById.TryGetValue(item.Id, out var transactions))
                         continue;
                     if (!categoryIdByName.TryGetValue(item.Category, out var categoryId))
                         continue;
 
-                    transaction.TransactionCategoryId = categoryId;
-                    categorized++;
+                    foreach (var transaction in transactions)
+                    {
+                        transaction.TransactionCategoryId = categoryId;
+                        categorized++;
+                    }
                 }
             }
 
@@ -327,5 +360,9 @@ namespace Web.Controllers.Api
             var physicalPath = Path.Combine(_env.WebRootPath, icon.IconPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
             return System.IO.File.Exists(physicalPath) ? icon.IconPath : BankIcons.Generic.IconPath;
         }
+
+        private static string NormalizeDescription(string description) =>
+            string.Join(' ', description.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+                .ToUpperInvariant();
     }
 }

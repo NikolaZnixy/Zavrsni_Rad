@@ -1,4 +1,5 @@
 using Data.Model.Data;
+using Data.Model.Interfaces;
 using Data.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,12 +11,12 @@ namespace Web.Controllers
     public class AdminController : Controller
     {
         private readonly EnableBankingClient _enableBankingClient;
-        private readonly GroqClient _groqClient;
+        private readonly ICategorizationService _categorizationService;
 
-        public AdminController(EnableBankingClient enableBankingClient, GroqClient groqClient)
+        public AdminController(EnableBankingClient enableBankingClient, ICategorizationService categorizationService)
         {
             _enableBankingClient = enableBankingClient;
-            _groqClient = groqClient;
+            _categorizationService = categorizationService;
         }
 
         public IActionResult Index() => View();
@@ -31,10 +32,17 @@ namespace Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CheckGroq()
+        public async Task<IActionResult> CheckCategorization()
         {
-            var result = await _groqClient.PingAsync();
-            return Ok(result);
+            if (_categorizationService is IAiCategorization aiCategorization)
+                return Ok(await aiCategorization.PingAsync(HttpContext.RequestAborted));
+
+            return Ok(new ServiceHealthResult
+            {
+                Healthy = true,
+                Configured = false,
+                Message = "No external AI provider is configured; local categorization remains available."
+            });
         }
 
         [HttpPost]

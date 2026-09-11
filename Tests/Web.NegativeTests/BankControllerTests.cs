@@ -1,4 +1,7 @@
 using Data.Model;
+using Data.Model.Data;
+using Data.Model.Interfaces;
+using Data.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -15,12 +18,12 @@ namespace Web.NegativeTests
     /// </summary>
     public class BankControllerTests
     {
-        private static BankController BuildController(Data.Services.AppDbContext db, Data.Services.EnableBankingClient bank, Data.Services.GroqClient groq, string callingUserId)
+        private static BankController BuildController(AppDbContext db, EnableBankingClient bank, ICategorizationService categorizationService, string callingUserId)
         {
             var env = new Mock<IWebHostEnvironment>();
             env.SetupGet(e => e.WebRootPath).Returns(AppContext.BaseDirectory);
 
-            var controller = new BankController(bank, groq, db, MockUserManager.Create(), env.Object)
+            var controller = new BankController(bank, categorizationService, db, MockUserManager.Create(), env.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -65,9 +68,9 @@ namespace Web.NegativeTests
             var account = SeedAccount(db, "owner-user-id");
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ThrowingConnectionFailure());
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
 
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.SyncTransactions(account.Id);
 
@@ -84,9 +87,9 @@ namespace Web.NegativeTests
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(
                 FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.Unauthorized, "{\"error\":\"invalid_credentials\"}"));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
 
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.SyncTransactions(account.Id);
 
@@ -101,18 +104,18 @@ namespace Web.NegativeTests
             var victimAccount = SeedAccount(db, "victim-user-id");
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var controller = BuildController(db.Context, bankClient, groqClient, "attacker-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "attacker-user-id");
 
             var result = await controller.SyncTransactions(victimAccount.Id);
 
             Assert.IsType<NotFoundResult>(result);
         }
 
-        // --- Groq unavailable ------------------------------------------------------------------
+        // --- Categorization provider unavailable -----------------------------------------------
 
         [Fact]
-        public async Task CategorizeTransactions_GroqUnreachable_LeavesTransactionsUncategorized_DoesNotThrow()
+        public async Task CategorizeTransactions_ProviderUnreachable_LeavesTransactionsUncategorized_DoesNotThrow()
         {
             using var db = new TestDb();
             var account = SeedAccount(db, "owner-user-id");
@@ -128,8 +131,8 @@ namespace Web.NegativeTests
             db.Context.SaveChanges();
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ThrowingConnectionFailure());
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ThrowingConnectionFailure());
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.CategorizeTransactions(account.Id);
 
@@ -139,7 +142,46 @@ namespace Web.NegativeTests
         }
 
         [Fact]
-        public async Task CategorizeTransactions_GroqReturnsMalformedJson_LeavesTransactionsUncategorized_DoesNotThrow()
+        public async Task CategorizeTransactions_KnownNormalizedDescription_ReusesCategoryWithoutProviderCall()
+        {
+            using var db = new TestDb();
+            var account = SeedAccount(db, "owner-user-id");
+            db.Context.BankAccountTransactions.AddRange(
+                new BankAccountTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    LinkedBankAccountId = account.Id,
+                    Description = "Coffee Shop",
+                    Amount = -3.5m,
+                    Currency = "EUR",
+                    TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+                    TransactionCategoryId = TransactionCategorySeedIds.Groceries
+                },
+                new BankAccountTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    LinkedBankAccountId = account.Id,
+                    Description = "  coffee   shop  ",
+                    Amount = -3.5m,
+                    Currency = "EUR",
+                    TransactionDate = DateOnly.FromDateTime(DateTime.UtcNow)
+                });
+            db.Context.SaveChanges();
+
+            var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ThrowingConnectionFailure());
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
+
+            var result = await controller.CategorizeTransactions(account.Id);
+
+            Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(
+                TransactionCategorySeedIds.Groceries,
+                db.Context.BankAccountTransactions.Single(t => t.Description == "  coffee   shop  ").TransactionCategoryId);
+        }
+
+        [Fact]
+        public async Task CategorizeTransactions_ProviderReturnsMalformedJson_LeavesTransactionsUncategorized_DoesNotThrow()
         {
             using var db = new TestDb();
             var account = SeedAccount(db, "owner-user-id");
@@ -154,14 +196,14 @@ namespace Web.NegativeTests
             });
             db.Context.SaveChanges();
 
-            // Groq responds 200 OK but with a completion whose content isn't the expected JSON shape at all.
+            // The provider responds 200 OK but with content that is not the expected JSON shape.
             const string chatCompletionWithGarbageContent = """
                 { "choices": [ { "message": { "role": "assistant", "content": "not json at all" } } ] }
                 """;
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningJson(chatCompletionWithGarbageContent));
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningJson(chatCompletionWithGarbageContent));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.CategorizeTransactions(account.Id);
 
@@ -170,7 +212,7 @@ namespace Web.NegativeTests
         }
 
         [Fact]
-        public async Task CategorizeTransactions_GroqInventsUnknownCategory_IsIgnored()
+        public async Task CategorizeTransactions_ProviderInventsUnknownCategory_IsIgnored()
         {
             using var db = new TestDb();
             var account = SeedAccount(db, "owner-user-id");
@@ -186,14 +228,14 @@ namespace Web.NegativeTests
             db.Context.BankAccountTransactions.Add(transaction);
             db.Context.SaveChanges();
 
-            // Groq "hallucinates" a category name that isn't part of the real, closed category set.
+            // Simulate a provider violating the schema; application validation remains the final guard.
             var chatCompletionWithUnknownCategory = $$"""
-                { "choices": [ { "message": { "role": "assistant", "content": "{\"categorizations\":[{\"id\":\"{{transaction.Id}}\",\"category\":\"not-a-real-category\"}]}" } } ] }
+                { "choices": [ { "message": { "role": "assistant", "content": "{\"c\":[{\"i\":0,\"c\":\"not-a-real-category\"}]}" } } ] }
                 """;
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningJson(chatCompletionWithUnknownCategory));
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningJson(chatCompletionWithUnknownCategory));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.CategorizeTransactions(account.Id);
 
@@ -208,8 +250,8 @@ namespace Web.NegativeTests
             var victimAccount = SeedAccount(db, "victim-user-id");
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var controller = BuildController(db.Context, bankClient, groqClient, "attacker-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "attacker-user-id");
 
             var result = await controller.CategorizeTransactions(victimAccount.Id);
 
@@ -225,8 +267,8 @@ namespace Web.NegativeTests
             var account = SeedAccount(db, "owner-user-id");
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.SetTransactionCategories(account.Id, new List<BankController.ManualCategoryAssignment>());
 
@@ -241,8 +283,8 @@ namespace Web.NegativeTests
             var account = SeedAccount(db, "owner-user-id");
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.SetTransactionCategories(account.Id, null!);
 
@@ -266,8 +308,8 @@ namespace Web.NegativeTests
             db.Context.SaveChanges();
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var bogusCategoryId = Guid.NewGuid(); // does not exist in TransactionCategories
             var result = await controller.SetTransactionCategories(account.Id,
@@ -299,8 +341,8 @@ namespace Web.NegativeTests
             var categoryId = db.Context.TransactionCategories.First().Id;
 
             var bankClient = FakeExternalServices.BuildEnableBankingClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var groqClient = FakeExternalServices.BuildGroqClient(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
-            var controller = BuildController(db.Context, bankClient, groqClient, "owner-user-id");
+            var categorizationService = FakeExternalServices.BuildOpenAiCategorization(FakeHttpMessageHandler.ReturningStatus(HttpStatusCode.OK));
+            var controller = BuildController(db.Context, bankClient, categorizationService, "owner-user-id");
 
             var result = await controller.SetTransactionCategories(ownAccount.Id,
                 new List<BankController.ManualCategoryAssignment> { new(foreignTransaction.Id, categoryId) });

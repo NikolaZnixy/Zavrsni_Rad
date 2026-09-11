@@ -5,10 +5,8 @@ using System.Security.Cryptography;
 namespace Web.NegativeTests.TestInfrastructure
 {
     /// <summary>
-    /// Builds real EnableBankingClient/GroqClient instances wired to a FakeHttpMessageHandler instead
-    /// of the real network. EnableBankingClient and GroqClient aren't behind interfaces and have no
-    /// virtual members, so they can't be mocked with Moq directly - swapping out the HttpClient's
-    /// handler is the seam the production code already exposes for this.
+    /// Builds real external service implementations wired to a FakeHttpMessageHandler instead of the
+    /// network, so tests exercise serialization and failure handling deterministically.
     /// </summary>
     public static class FakeExternalServices
     {
@@ -35,18 +33,18 @@ namespace Web.NegativeTests.TestInfrastructure
             return new EnableBankingClient(httpClient, config);
         }
 
-        public static GroqClient BuildGroqClient(FakeHttpMessageHandler handler, string? apiKey = null)
+        public static OpenAiCategorization BuildOpenAiCategorization(FakeHttpMessageHandler handler, string? apiKey = null)
         {
             var config = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Groq:ApiKey"] = apiKey ?? "test-api-key",
-                    ["Groq:Model"] = "test-model",
+                    ["OpenAI:ApiKey"] = apiKey ?? "test-api-key",
+                    ["OpenAI:Model"] = "gpt-5-nano",
                 })
                 .Build();
 
-            var httpClient = FakeHttpMessageHandler.BuildClient(handler, new Uri("https://api.groq.test/"));
-            return new GroqClient(httpClient, config);
+            var httpClient = FakeHttpMessageHandler.BuildClient(handler, new Uri("https://api.openai.test/v1/"));
+            return new OpenAiCategorization(httpClient, config);
         }
     }
 }

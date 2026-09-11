@@ -38,14 +38,14 @@ namespace Web.NegativeTests.TestInfrastructure
         {
             builder.ConfigureAppConfiguration((_, configBuilder) =>
             {
-                // Dummy values so EnableBankingClient/GroqClient/Google OAuth construct without throwing
+                // Dummy values so external clients and Google OAuth construct without throwing
                 // on missing configuration - none of the tests that use this factory actually call out
                 // to those services.
                 configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["EnableBanking:ApplicationId"] = "test-application-id",
                     ["EnableBanking:PrivateKeyPem"] = FakeExternalServices.GenerateRsaPrivateKeyPem(),
-                    ["Groq:ApiKey"] = "test-groq-key",
+                    ["OpenAI:ApiKey"] = "test-openai-key",
                     ["0Auth:ClientId"] = "test-client-id",
                     ["0Auth:ClientSecret"] = "test-client-secret",
                 });

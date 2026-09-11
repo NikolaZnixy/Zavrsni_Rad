@@ -11,7 +11,7 @@ services
     .AddCoreServices(builder.Configuration)
     .AddIdentity(builder.Configuration)
     .AddEnableBanking()
-    .AddGroq()
+    .AddCategorization(builder.Configuration)
     .AddControllersWithViews();
 
 services.AddRazorPages();
