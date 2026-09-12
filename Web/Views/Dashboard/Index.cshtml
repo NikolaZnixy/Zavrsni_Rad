@@ -1,3 +1,4 @@
+@model Web.Models.DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
 }
@@ -8,11 +9,82 @@
 
 <h1 class="page-title">Dashboard</h1>
 
-@await Component.InvokeAsync("Calendar", new
+@if (Model.Account is null)
 {
-    accountId = (Guid?)null,
-    year = (int?)null,
-    month = (int?)null,
-    openDay = (int?)null,
-    compact = true
-})
+    <div class="calendar-empty-state">
+        <i class="fa-solid fa-building-columns"></i>
+        <p>Link a bank account to see your dashboard overview.</p>
+        <a asp-controller="Transactions" asp-action="Accounts" class="btn-pill btn-pill-primary">Link an account</a>
+    </div>
+}
+else
+{
+    <div class="dashboard-panels">
+        <section class="dashboard-panel dashboard-overview-panel">
+            <h2 class="dashboard-panel-title">Overview &mdash; @Model.Account.DisplayName</h2>
+
+            <div class="dashboard-stat-grid">
+                <div class="dashboard-stat-card">
+                    <p class="dashboard-stat-label">Transactions synced</p>
+                    <p class="dashboard-stat-value">@Model.TransactionCount</p>
+                </div>
+                <div class="dashboard-stat-card">
+                    <p class="dashboard-stat-label">Last sync</p>
+                    <p class="dashboard-stat-value dashboard-stat-value-sm">
+                        @(Model.LastSyncedAt is { } last ? last.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "Never synced")
+                    </p>
+                </div>
+                <div class="dashboard-stat-card">
+                    <p class="dashboard-stat-label">Spent this month</p>
+                    <p class="dashboard-stat-value dashboard-stat-value-sm">@Model.SpentThisMonth.ToString("N2")</p>
+                    @if (Model.MonthOverMonthChangePercent is { } mom)
+                    {
+                        <p class="dashboard-stat-trend @(mom <= 0 ? "dashboard-trend-good" : "dashboard-trend-bad")">
+                            <i class="fa-solid @(mom <= 0 ? "fa-arrow-trend-down" : "fa-arrow-trend-up")"></i>
+                            @(Math.Abs(mom).ToString("N0"))% vs last month
+                        </p>
+                    }
+                </div>
+                <div class="dashboard-stat-card">
+                    <p class="dashboard-stat-label">Recurring payments</p>
+                    <p class="dashboard-stat-value">@Model.RecurringCount</p>
+                </div>
+            </div>
+
+            <div class="dashboard-categorization">
+                <div class="dashboard-categorization-header">
+                    <span>Categorization progress</span>
+                    <span class="dashboard-categorization-pct">@Model.CategorizedPercent.ToString("N0")%</span>
+                </div>
+                <div class="dashboard-progress-track">
+                    <div class="dashboard-progress-fill" style="width: @(Model.CategorizedPercent.ToString("N0", System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+                </div>
+                <p class="dashboard-categorization-disclaimer">
+                    <i class="fa-solid fa-circle-info"></i>
+                    You'll get richer insights and statistics the more of your transactions are categorized.
+                    <a asp-controller="Transactions" asp-action="List" asp-route-accountId="@Model.Account.Id">Categorize now &rarr;</a>
+                </p>
+            </div>
+
+            @if (Model.TopCategoryThisMonth is not null)
+            {
+                <p class="dashboard-highlight">
+                    <i class="fa-solid fa-tag"></i>
+                    Your top spending category this month is <strong>@Model.TopCategoryThisMonth</strong>.
+                </p>
+            }
+        </section>
+
+        <section class="dashboard-panel dashboard-calendar-panel">
+            @await Component.InvokeAsync("Calendar", new
+            {
+                accountId = Model.Account.Id,
+                year = (int?)null,
+                month = (int?)null,
+                openDay = (int?)null,
+                compact = true
+            })
+        </section>
+    </div>
+}
+

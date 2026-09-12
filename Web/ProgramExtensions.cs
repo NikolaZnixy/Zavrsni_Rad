@@ -12,6 +12,8 @@ namespace Web
         {
             var connectionString = configuration.GetConnectionString("SqliteConnection");
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+            services.AddHttpContextAccessor();
+            services.AddScoped<Data.Model.Interfaces.IActivityLogger, Web.Services.ActivityLogger>();
             return services;
         }
 

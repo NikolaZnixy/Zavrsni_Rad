@@ -22,37 +22,78 @@
             <span data-status-text>Not checked</span>
         </div>
         <p class="health-detail" data-status-detail></p>
+        <dl class="health-metrics" data-status-metrics hidden></dl>
         <button type="button" class="btn-pill btn-pill-primary health-check-btn" data-check-btn>Check now</button>
     </div>
 
     <div class="health-card" data-service-card data-endpoint="@Url.Action("CheckCategorization", "Admin")">
         <div class="health-card-header">
             <i class="fa-solid fa-brain"></i>
-            <h2>Transaction categorization</h2>
+            <h2>AI categorization</h2>
         </div>
-        <p class="health-card-desc">Configured transaction categorization provider.</p>
+        <p class="health-card-desc">
+            Deep check: API key, model availability, a live test completion, and remaining request/token quota.
+        </p>
         <div class="health-status" data-status>
             <span class="status-dot" data-status-dot></span>
             <span data-status-text>Not checked</span>
         </div>
         <p class="health-detail" data-status-detail></p>
-        <button type="button" class="btn-pill btn-pill-primary health-check-btn" data-check-btn>Check now</button>
-    </div>
-
-    <div class="health-card" data-service-card data-endpoint="@Url.Action("CheckAzure", "Admin")">
-        <div class="health-card-header">
-            <i class="fa-solid fa-file-invoice"></i>
-            <h2>Azure Document Intelligence</h2>
-        </div>
-        <p class="health-card-desc">Receipt scanning (not built yet).</p>
-        <div class="health-status" data-status>
-            <span class="status-dot" data-status-dot></span>
-            <span data-status-text>Not checked</span>
-        </div>
-        <p class="health-detail" data-status-detail></p>
+        <dl class="health-metrics" data-status-metrics hidden></dl>
         <button type="button" class="btn-pill btn-pill-primary health-check-btn" data-check-btn>Check now</button>
     </div>
 </div>
+
+<section class="log-panel" data-log-panel
+         data-logs-endpoint="@Url.Action("Logs", "Admin")"
+         data-clear-endpoint="@Url.Action("ClearLogs", "Admin")">
+    <div class="log-panel-header">
+        <div>
+            <h2 class="log-panel-title">Activity log</h2>
+            <p class="log-panel-subtitle">Every sign-in, page visit, bank sync, categorization run and error.</p>
+        </div>
+        <div class="log-panel-actions">
+            <label class="log-auto">
+                <input type="checkbox" data-log-auto checked />
+                <span>Auto-refresh</span>
+            </label>
+            <button type="button" class="btn-pill-outline log-btn" data-log-refresh>Refresh</button>
+            <button type="button" class="btn-pill-danger-outline log-btn" data-log-clear>Clear</button>
+        </div>
+    </div>
+
+    <div class="log-filters">
+        <select class="log-filter" data-log-level>
+            <option value="">All levels</option>
+            <option value="Info">Info</option>
+            <option value="Warning">Warning</option>
+            <option value="Error">Error</option>
+        </select>
+        <select class="log-filter" data-log-category>
+            <option value="">All categories</option>
+        </select>
+        <input type="search" class="log-filter log-search" placeholder="Search message, user or path..." data-log-search />
+        <span class="log-count" data-log-count></span>
+    </div>
+
+    <div class="log-window" data-log-window>
+        <p class="log-empty" data-log-empty>Loading activity...</p>
+        <table class="log-table" data-log-table hidden>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Level</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                    <th>Message</th>
+                    <th>User</th>
+                    <th>Took</th>
+                </tr>
+            </thead>
+            <tbody data-log-body></tbody>
+        </table>
+    </div>
+</section>
 
 @section Scripts {
     <script src="~/js/admin.js" asp-append-version="true"></script>

@@ -23,13 +23,15 @@ namespace Web.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<AppUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly Data.Model.Interfaces.IActivityLogger _activityLogger;
 
         public RegisterModel(
             UserManager<AppUser> userManager,
             IUserStore<AppUser> userStore,
             SignInManager<AppUser> signInManager,
             ILogger<RegisterModel> logger,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            Data.Model.Interfaces.IActivityLogger activityLogger)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -37,6 +39,7 @@ namespace Web.Areas.Identity.Pages.Account
             _signInManager = signInManager;
             _logger = logger;
             _emailSender = emailSender;
+            _activityLogger = activityLogger;
         }
 
         /// <summary>
@@ -115,6 +118,7 @@ namespace Web.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User created a new account with password.");
+                    await _activityLogger.LogAsync("Auth", "Register", $"New account registered for {Input.Email}.");
 
                     var userId = await _userManager.GetUserIdAsync(user);
                     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -142,6 +146,12 @@ namespace Web.Areas.Identity.Pages.Account
                 {
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
+                await _activityLogger.LogAsync(
+                    "Auth",
+                    "RegisterFailed",
+                    $"Registration failed for {Input.Email}.",
+                    Data.Model.ActivityLogLevel.Warning,
+                    detail: string.Join("; ", result.Errors.Select(e => e.Description)));
             }
 
             // If we got this far, something failed, redisplay form

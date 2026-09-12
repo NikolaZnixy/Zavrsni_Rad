@@ -1,0 +1,43 @@
+@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Check your email";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
+}
+
+<div class="login-hero">
+    <div class="login-card">
+        <h2 class="login-card-title">@ViewData["Title"]</h2>
+        <p class="login-card-subtitle">One more step before you can log in</p>
+
+        @if (Model.DisplayConfirmAccountLink)
+        {
+            <p class="text-muted">
+                This app doesn't have a real email sender configured yet, so here's the confirmation
+                link that would normally be emailed to <strong>@Model.Email</strong>:
+            </p>
+            <a id="confirm-link" class="btn-pill btn-pill-primary login-submit-btn" href="@Model.EmailConfirmationUrl">
+                Confirm my account
+            </a>
+        }
+        else
+        {
+            <p class="text-muted">
+                We've sent a confirmation link to <strong>@Model.Email</strong>. Please check your inbox
+                to finish setting up your account.
+            </p>
+        }
+
+        <div class="login-links">
+            <a asp-page="./Login">Back to log in</a>
+        </div>
+    </div>
+
+    <div class="login-copy">
+        <h1 class="page-title login-copy-title">Almost there.</h1>
+        <p class="login-copy-subtitle">Confirm your email and start tracking every transaction in one place.</p>
+    </div>
+</div>

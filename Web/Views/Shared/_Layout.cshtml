@@ -1,7 +1,11 @@
 @using Data.Model
 @using Data.Model.Data
+@using Data.Services
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @inject SignInManager<AppUser> SignInManager
+@inject UserManager<AppUser> UserManager
+@inject AppDbContext Db
 @{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
@@ -10,6 +14,22 @@
     // Every page reachable from the floating sidebar lives under /Dashboard/ - the sidebar itself
     // only makes sense once the user is there, so it's gated on the same prefix.
     var isDashboard = Context.Request.Path.StartsWithSegments("/Dashboard");
+
+    // Global account switcher (top bar, between the logo and the profile icon): lets the user
+    // change the "current" account once instead of re-selecting it on Calendar/Statistics/Dashboard
+    // separately. The choice is remembered via a cookie (see Api/AccountSelectionController).
+    List<LinkedBankAccount> switcherAccounts = new();
+    Guid? switcherSelectedId = null;
+    if (isDashboard && isSignedIn)
+    {
+        var switcherUserId = UserManager.GetUserId(User);
+        switcherAccounts = (await Db.LinkedBankAccounts.Where(a => a.UserId == switcherUserId).ToListAsync())
+            .OrderBy(a => a.LinkedAt)
+            .ToList();
+        if (Guid.TryParse(Context.Request.Cookies[Web.Controllers.Api.AccountSelectionController.CookieName], out var parsedSwitcherId))
+            switcherSelectedId = parsedSwitcherId;
+        switcherSelectedId ??= switcherAccounts.OrderByDescending(a => a.LinkedAt).FirstOrDefault()?.Id;
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -23,7 +43,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
+<body class="@ViewData["BodyClass"]">
     <div id="particles-background"></div>
     <div class="app-shell">
         @if (isDashboard)
@@ -60,21 +80,22 @@
                             <i class="fa-solid fa-calendar"></i>
                         </a>
                     </li>
-                    <li>
+                    <li class="app-sidebar-loading" id="sidebar-loading-track" aria-hidden="true">
+                        <span class="app-sidebar-loading-dot"></span>
+                    </li>
+                    <li class="app-sidebar-bottom-group">
+                        @if (isAdmin)
+                        {
+                            <a class="app-sidebar-link @(currentController == "Admin" ? "active" : "")"
+                               asp-controller="Admin" asp-action="Index" title="Admin">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </a>
+                        }
                         <a class="app-sidebar-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")"
                            asp-controller="Home" asp-action="Privacy" title="Privacy">
                             <i class="fa-solid fa-user-shield"></i>
                         </a>
                     </li>
-                    @if (isAdmin)
-                    {
-                        <li class="app-sidebar-admin">
-                            <a class="app-sidebar-link @(currentController == "Admin" ? "active" : "")"
-                               asp-controller="Admin" asp-action="Index" title="Admin">
-                                <i class="fa-solid fa-shield-halved"></i>
-                            </a>
-                        </li>
-                    }
                 </ul>
             </nav>
         }
@@ -96,6 +117,34 @@
                         </a>
                     }
                 </div>
+
+                @if (switcherAccounts.Count > 0)
+                {
+                    <div class="app-topbar-center">
+                        <div class="app-account-switcher dropdown">
+                            <button class="app-account-switcher-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Switch account">
+                                <i class="fa-solid fa-building-columns"></i>
+                                <span>@(switcherAccounts.FirstOrDefault(a => a.Id == switcherSelectedId)?.DisplayName ?? "Select account")</span>
+                                <i class="fa-solid fa-chevron-down app-account-switcher-caret"></i>
+                            </button>
+                            <ul class="dropdown-menu app-account-switcher-menu">
+                                @foreach (var acc in switcherAccounts)
+                                {
+                                    <li>
+                                        <button type="button" class="dropdown-item app-account-switcher-item @(acc.Id == switcherSelectedId ? "active" : "")"
+                                                data-account-id="@acc.Id">
+                                            @if (acc.Id == switcherSelectedId)
+                                            {
+                                                <i class="fa-solid fa-check"></i>
+                                            }
+                                            @acc.DisplayName
+                                        </button>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
 
                 <div class="app-topbar-right">
                     <div class="app-profile dropdown">
@@ -119,6 +168,10 @@
         </div>
     </div>
 
+    <div id="global-loading-overlay" class="global-loading-overlay" aria-hidden="true">
+        <div class="global-loading-spinner"></div>
+    </div>
+
     <footer class="border-top footer text-muted">
         <div class="container">
             &copy; 2026 - Web
@@ -129,6 +182,34 @@
     <script src="~/lib/particles.js/particles.min.js"></script>
     <script src="~/js/particles-background.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        // Global "app is busy" indicator: a centered spinner overlay plus a bouncing dot in the
+        // remaining empty space of the left sidebar. Used while categorization is running (see
+        // Transactions/List.cshtml) but is a shared, page-agnostic helper (window.appLoading).
+        window.appLoading = {
+            start() {
+                document.getElementById("global-loading-overlay")?.classList.add("visible");
+                document.getElementById("sidebar-loading-track")?.classList.add("is-active");
+            },
+            stop() {
+                document.getElementById("global-loading-overlay")?.classList.remove("visible");
+                document.getElementById("sidebar-loading-track")?.classList.remove("is-active");
+            }
+        };
+
+        // Global account switcher: posts the chosen account to a cookie-setting endpoint, then
+        // reloads so every panel on the page (calendar, overview stats, etc.) picks it up.
+        document.querySelectorAll(".app-account-switcher-item").forEach((item) => {
+            item.addEventListener("click", async () => {
+                const accountId = item.dataset.accountId;
+                try {
+                    await fetch(`/api/account-selection/${accountId}`, { method: "POST" });
+                } finally {
+                    window.location.reload();
+                }
+            });
+        });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -5,20 +5,30 @@
     ViewData["ActivePage"] = ManageNavPages.PersonalData;
 }
 
-<h3>@ViewData["Title"]</h3>
+@section Styles {
+    <link rel="stylesheet" href="~/css/manage.css" asp-append-version="true" />
+}
 
-<div class="row">
-    <div class="col-md-6">
-        <p>Your account contains personal data that you have given us. This page allows you to download or delete that data.</p>
-        <p>
-            <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
-        </p>
-        <form id="download-data" asp-page="DownloadPersonalData" method="post">
-            <button class="btn btn-primary" type="submit">Download</button>
-        </form>
-        <p>
-            <a id="delete" asp-page="DeletePersonalData" class="btn btn-danger">Delete</a>
-        </p>
+<h1 class="page-title">Manage account</h1>
+
+<div class="manage-layout">
+    <nav class="manage-nav" aria-label="Manage account">
+        <partial name="_ManageNav" />
+    </nav>
+    <div class="manage-content">
+        <div class="manage-card">
+            <h3 class="manage-card-title">@ViewData["Title"]</h3>
+            <p class="manage-copy">Your account contains personal data that you have given us. This page allows you to download or delete that data.</p>
+            <div class="manage-danger-note">
+                <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
+            </div>
+            <div class="manage-actions">
+                <form id="download-data" asp-page="DownloadPersonalData" method="post">
+                    <button class="btn-pill btn-pill-outline" type="submit">Download</button>
+                </form>
+                <a id="delete" asp-page="DeletePersonalData" class="btn-pill btn-pill-danger">Delete</a>
+            </div>
+        </div>
     </div>
 </div>
 

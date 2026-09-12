@@ -35,9 +35,17 @@ namespace Web.ViewComponents
                 .OrderBy(a => a.LinkedAt)
                 .ToList();
 
+            // Explicit accountId wins; otherwise fall back to the globally selected account (top bar
+            // dropdown), and finally to the most recently linked one.
+            Guid? cookieAccountId = Guid.TryParse(
+                HttpContext.Request.Cookies[Web.Controllers.Api.AccountSelectionController.CookieName], out var parsedId)
+                ? parsedId
+                : null;
+
             var account = accountId is { } id
                 ? accounts.FirstOrDefault(a => a.Id == id)
-                : accounts.OrderByDescending(a => a.LinkedAt).FirstOrDefault();
+                : (cookieAccountId is { } cid ? accounts.FirstOrDefault(a => a.Id == cid) : null)
+                    ?? accounts.OrderByDescending(a => a.LinkedAt).FirstOrDefault();
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var resolvedYear = year ?? today.Year;

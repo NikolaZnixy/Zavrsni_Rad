@@ -11,5 +11,32 @@ namespace Data.Model.Data
 
         public string Message { get; set; } = "";
         public long LatencyMs { get; set; }
+
+        /// <summary>Name of the provider actually behind the check, when it can vary (e.g. "OpenAI").</summary>
+        public string? Provider { get; set; }
+
+        /// <summary>
+        /// Ordered extra detail rendered as a small table in the admin panel - quotas, rate-limit windows,
+        /// token usage, model availability, per-probe latencies, and so on.
+        /// </summary>
+        public List<ServiceHealthMetric> Metrics { get; set; } = [];
+    }
+
+    public class ServiceHealthMetric
+    {
+        public ServiceHealthMetric() { }
+
+        public ServiceHealthMetric(string label, string value, string status = "neutral")
+        {
+            Label = label;
+            Value = value;
+            Status = status;
+        }
+
+        public string Label { get; set; } = "";
+        public string Value { get; set; } = "";
+
+        /// <summary>One of "good", "warn", "bad", "neutral" - drives the colour of the value in the UI.</summary>
+        public string Status { get; set; } = "neutral";
     }
 }

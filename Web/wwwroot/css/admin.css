@@ -110,3 +110,215 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* Extended health-check metrics (OpenAI quota, latencies, model availability). */
+.health-metrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 0.76rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 10px;
+}
+
+.health-metrics dt {
+  color: var(--app-glass-text-muted);
+  font-weight: 500;
+}
+
+.health-metrics dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.health-metrics .metric-good { color: #51cf66; }
+.health-metrics .metric-warn { color: #ffd43b; }
+.health-metrics .metric-bad { color: #ff6b6b; }
+.health-metrics .metric-neutral { color: var(--app-glass-text); }
+
+/* Activity log window. */
+.log-panel {
+  margin-top: 28px;
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+  border-radius: 20px;
+  padding: 20px;
+  color: var(--app-glass-text);
+}
+
+.log-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.log-panel-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.log-panel-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--app-glass-text-muted);
+}
+
+.log-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.log-btn {
+  font-size: 0.78rem;
+  padding: 6px 14px;
+}
+
+.log-auto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--app-glass-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.log-auto input {
+  accent-color: #51cf66;
+  cursor: pointer;
+}
+
+.log-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0 12px;
+}
+
+.log-filter {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: var(--app-glass-text);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.log-filter:focus {
+  border-color: #51cf66;
+}
+
+.log-filter option {
+  background-color: #1b1d21;
+  color: #f1f3f5;
+}
+
+.log-search {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+
+.log-count {
+  font-size: 0.75rem;
+  color: var(--app-glass-text-muted);
+  margin-left: auto;
+}
+
+.log-window {
+  max-height: 420px;
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.log-empty {
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--app-glass-text-muted);
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.log-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #16181c;
+  text-align: left;
+  font-weight: 600;
+  color: var(--app-glass-text-muted);
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+.log-table td {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: top;
+}
+
+.log-cell-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--app-glass-text-muted);
+}
+
+.log-cell-message {
+  word-break: break-word;
+}
+
+.log-row-expandable {
+  cursor: pointer;
+}
+
+.log-row-expandable:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.log-row-warning td { background-color: rgba(255, 212, 59, 0.06); }
+.log-row-error td { background-color: rgba(255, 107, 107, 0.08); }
+
+.log-level {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.log-level-info { background-color: rgba(81, 207, 102, 0.15); color: #51cf66; }
+.log-level-warning { background-color: rgba(255, 212, 59, 0.15); color: #ffd43b; }
+.log-level-error { background-color: rgba(255, 107, 107, 0.15); color: #ff6b6b; }
+
+.log-status {
+  margin-left: 8px;
+  font-size: 0.68rem;
+  color: var(--app-glass-text-muted);
+}
+
+.log-detail-row td {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--app-glass-text-muted);
+  background-color: rgba(0, 0, 0, 0.25);
+}

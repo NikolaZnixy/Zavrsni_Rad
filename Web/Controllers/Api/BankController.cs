@@ -21,14 +21,16 @@ namespace Web.Controllers.Api
         private readonly AppDbContext _db;
         private readonly UserManager<AppUser> _userManager;
         private readonly IWebHostEnvironment _env;
+        private readonly IActivityLogger _activityLogger;
 
-        public BankController(EnableBankingClient client, ICategorizationService categorizationService, AppDbContext db, UserManager<AppUser> userManager, IWebHostEnvironment env)
+        public BankController(EnableBankingClient client, ICategorizationService categorizationService, AppDbContext db, UserManager<AppUser> userManager, IWebHostEnvironment env, IActivityLogger activityLogger)
         {
             _client = client;
             _categorizationService = categorizationService;
             _db = db;
             _userManager = userManager;
             _env = env;
+            _activityLogger = activityLogger;
         }
 
         private record LinkState(string UserId, string DisplayName, string AspspName, string Country);
@@ -78,6 +80,11 @@ namespace Web.Controllers.Api
 
             await _db.SaveChangesAsync();
 
+            await _activityLogger.LogAsync(
+                "Bank",
+                "AccountLinked",
+                $"Linked {session.Accounts.Count} account(s) from {linkState.AspspName} ({linkState.Country}).");
+
             return RedirectToAction("Accounts", "Transactions");
         }
 
@@ -97,6 +104,12 @@ namespace Web.Controllers.Api
             _db.LinkedBankAccounts.Remove(account);
 
             await _db.SaveChangesAsync();
+
+            await _activityLogger.LogAsync(
+                "Bank",
+                "AccountUnlinked",
+                $"Unlinked account \"{account.DisplayName}\" and removed its transactions.",
+                ActivityLogLevel.Warning);
 
             return Ok();
         }
@@ -120,6 +133,7 @@ namespace Web.Controllers.Api
             var dateTo = DateOnly.FromDateTime(DateTime.UtcNow);
 
             List<Data.Model.Data.EnableBankingDtos.Transaction> fetched;
+            var fetchStopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 fetched = await _client.GetAllTransactionsAsync(account.EnableBankingAccountId, dateFrom, dateTo);
@@ -129,8 +143,18 @@ namespace Web.Controllers.Api
                 // The bank's own connector failed on Enable Banking's side (ASPSP_ERROR) even after retries,
                 // or some other upstream failure - surface it as a normal error response instead of crashing
                 // the request, so the UI can show it and the user can just try again.
+                fetchStopwatch.Stop();
+                await _activityLogger.LogAsync(
+                    "Bank",
+                    "SyncFailed",
+                    $"Transaction sync failed for \"{account.DisplayName}\".",
+                    ActivityLogLevel.Error,
+                    detail: ex.Message,
+                    durationMs: fetchStopwatch.ElapsedMilliseconds,
+                    statusCode: 502);
                 return StatusCode(502, new { error = "Your bank couldn't return transactions right now. Try again in a bit.", detail = ex.Message });
             }
+            fetchStopwatch.Stop();
 
             var existingExternalIds = await _db.BankAccountTransactions
                 .Where(t => t.LinkedBankAccountId == linkedAccountId && t.ExternalTransactionId != null)
@@ -177,6 +201,12 @@ namespace Web.Controllers.Api
 
             account.LastSyncedAt = DateTimeOffset.UtcNow;
             await _db.SaveChangesAsync();
+
+            await _activityLogger.LogAsync(
+                "Bank",
+                "SyncTransactions",
+                $"Synced \"{account.DisplayName}\": {added} new transaction(s) from {fetched.Count} fetched.",
+                durationMs: fetchStopwatch.ElapsedMilliseconds);
 
             return Ok(new { added, lastSyncedAt = account.LastSyncedAt });
         }
@@ -260,9 +290,15 @@ namespace Web.Controllers.Api
                         categoryNames,
                         HttpContext.RequestAborted);
                 }
-                catch (HttpRequestException)
+                catch (HttpRequestException ex)
                 {
                     // A remote categorizer failed for this batch; preserve uncategorized transactions.
+                    await _activityLogger.LogAsync(
+                        "Categorization",
+                        "CategorizeBatchFailed",
+                        $"Categorization provider failed for a batch of {payload.Count} transaction(s).",
+                        ActivityLogLevel.Error,
+                        detail: ex.Message);
                     continue;
                 }
 
@@ -287,6 +323,11 @@ namespace Web.Controllers.Api
             }
 
             await _db.SaveChangesAsync();
+
+            await _activityLogger.LogAsync(
+                "Categorization",
+                "CategorizeTransactions",
+                $"Categorized {categorized} of {uncategorized.Count} uncategorized transaction(s) on \"{account.DisplayName}\".");
 
             return Ok(new { categorized, total = uncategorized.Count });
         }

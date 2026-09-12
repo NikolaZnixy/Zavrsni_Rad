@@ -1,6 +1,7 @@
 @model Web.Models.TransactionsListViewModel
 @{
     Layout = "_Layout";
+    ViewData["BodyClass"] = "page-fill-viewport";
 
     // Fixed accent color per category name, so the legend dots and the table's category badges
     // always agree. Falls back to a neutral grey for any category not in this map (e.g. one added
@@ -16,24 +17,98 @@
 
     string ColorFor(string categoryName) =>
         categoryColors.TryGetValue(categoryName, out var color) ? color : "#9a9a9a";
+
+    string missedClass = "sync-status-missed-ok";
+    if (Model.EstimatedMissedTransactions is { } missed)
+    {
+        missedClass = missed switch
+        {
+            <= 0 => "sync-status-missed-ok",
+            <= 3 => "sync-status-missed-warn",
+            _ => "sync-status-missed-danger"
+        };
+    }
 }
 
+<div class="transactions-page-fill">
 <h1 class="page-title">@Model.Account.DisplayName</h1>
 <p class="text-muted">@Model.Account.AspspName (@Model.Account.Country)</p>
 
 <div class="d-flex align-items-center justify-content-between mb-3">
-    <span id="last-synced-text" class="text-muted small">
-        @(Model.Account.LastSyncedAt is { } lastSyncedAt
-            ? $"Last synced: {lastSyncedAt.ToLocalTime():yyyy-MM-dd HH:mm}"
-            : "Never synced")
-    </span>
+    <div class="sync-status">
+        <span id="last-synced-text" class="text-muted small">
+            @(Model.Account.LastSyncedAt is { } lastSyncedAt
+                ? $"Last synced: {lastSyncedAt.ToLocalTime():yyyy-MM-dd HH:mm}"
+                : "Never synced")
+        </span>
+        @if (Model.Account.LastSyncedAt is not null && Model.EstimatedMissedTransactions is { } missedCount)
+        {
+            <span class="sync-status-missed @missedClass">
+                @if (missedCount <= 0)
+                {
+                    <text>You're all caught up</text>
+                }
+                else
+                {
+                    <text>~@missedCount transaction@(missedCount == 1 ? "" : "s") possibly missed since last sync</text>
+                }
+            </span>
+        }
+    </div>
 
-    <div>
-        <!-- Not wired up yet - placeholder for the screenshot in the thesis, filtering to be implemented later. -->
-        <button type="button" id="filter-transactions-btn" class="btn-pill" disabled title="Coming soon">
-            <i class="fa-solid fa-filter" aria-hidden="true"></i>
-            Filter
-        </button>
+    <div class="d-flex align-items-center">
+        <div class="filter-wrapper">
+            <button type="button" id="filter-transactions-btn" class="btn-pill">
+                <i class="fa-solid fa-filter" aria-hidden="true"></i>
+                Filter
+            </button>
+            <form id="filter-panel" class="filter-panel" hidden method="get" asp-action="List">
+                <input type="hidden" name="accountId" value="@Model.Account.Id" />
+                <div class="filter-panel-row">
+                    <label>Type</label>
+                    <select name="type">
+                        <option value="all" selected="@(Model.Type == "all")">All</option>
+                        <option value="income" selected="@(Model.Type == "income")">Income</option>
+                        <option value="expense" selected="@(Model.Type == "expense")">Expense</option>
+                    </select>
+                </div>
+                <div class="filter-panel-row">
+                    <label>Amount range</label>
+                    <div class="filter-panel-row-inline">
+                        <input type="number" step="0.01" name="minAmount" placeholder="Min" value="@Model.MinAmount" />
+                        <input type="number" step="0.01" name="maxAmount" placeholder="Max" value="@Model.MaxAmount" />
+                    </div>
+                </div>
+                <div class="filter-panel-row">
+                    <label>Category</label>
+                    <select name="categoryId">
+                        <option value="" selected="@(Model.CategoryId == null)">All categories</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="filter-panel-row">
+                    <label>Sort by</label>
+                    <div class="filter-panel-row-inline">
+                        <select name="sortBy">
+                            <option value="date" selected="@(Model.SortBy == "date")">Date</option>
+                            <option value="amount" selected="@(Model.SortBy == "amount")">Amount</option>
+                        </select>
+                        <select name="sortDir">
+                            <option value="desc" selected="@(Model.SortDir == "desc")">Descending</option>
+                            <option value="asc" selected="@(Model.SortDir == "asc")">Ascending</option>
+                        </select>
+                    </div>
+                </div>
+                <input type="hidden" name="daysAgo" value="@Model.DaysAgo" />
+                <div class="filter-panel-actions">
+                    <a class="btn-pill" asp-action="List" asp-route-accountId="@Model.Account.Id">Reset</a>
+                    <button type="submit" class="btn-pill btn-pill-primary">Apply</button>
+                </div>
+            </form>
+        </div>
         <form asp-action="Clear" asp-route-accountId="@Model.Account.Id" method="post" class="d-inline"
               onsubmit="return confirm('Delete all stored transactions for this account? This cannot be undone.');">
             <button type="submit" class="btn-pill-danger-outline">Clear transactions</button>
@@ -61,7 +136,7 @@
     </button>
 </div>
 
-<div class="transactions-layout">
+<div class="transactions-layout transactions-layout-fill">
     <aside class="category-legend">
         <div class="category-legend-list">
             @foreach (var category in Model.Categories)
@@ -91,7 +166,8 @@
         </div>
     </aside>
 
-    <section class="accounts-panel">
+    <section class="accounts-panel accounts-panel-fill">
+        <div class="transactions-table-scroll">
         <table class="transactions-table" id="transactions-table">
             <thead>
                 <tr>
@@ -137,11 +213,28 @@
                 }
             </tbody>
         </table>
+        </div>
     </section>
 </div>
+</div>
+
 
 @section Scripts {
     <script>
+        (() => {
+            const toggleBtn = document.getElementById("filter-transactions-btn");
+            const panel = document.getElementById("filter-panel");
+            toggleBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                panel.hidden = !panel.hidden;
+            });
+            document.addEventListener("click", (e) => {
+                if (!panel.hidden && !panel.contains(e.target) && e.target !== toggleBtn) {
+                    panel.hidden = true;
+                }
+            });
+        })();
+
         document.getElementById("fetch-transactions-btn").addEventListener("click", async (e) => {
             const btn = e.currentTarget;
             const accountId = btn.dataset.accountId;
@@ -177,6 +270,7 @@
             btn.disabled = true;
             const originalText = label.textContent;
             label.textContent = "Categorizing...";
+            window.appLoading.start();
 
             try {
                 const response = await fetch(`/api/bank/transactions/${accountId}/categorize`, { method: "POST" });
@@ -186,6 +280,7 @@
                 alert("Error categorizing transactions: " + err);
                 btn.disabled = false;
                 label.textContent = originalText;
+                window.appLoading.stop();
             }
         });
 

@@ -83,6 +83,16 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick: function (evt, elements) {
+                if (!elements.length || !data.accountId) return;
+                var slice = data.categoryBreakdown[elements[0].index];
+                var url = "/Dashboard/Transactions/List?accountId=" + data.accountId;
+                if (slice.categoryId) url += "&categoryId=" + slice.categoryId;
+                window.location.href = url;
+            },
+            onHover: function (evt, elements) {
+                evt.native.target.style.cursor = elements.length ? "pointer" : "default";
+            },
             plugins: { legend: { position: "right", labels: { boxWidth: 12, usePointStyle: true } } }
         }
     });
@@ -101,7 +111,19 @@
             indexAxis: "y",
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function (ctx) {
+                            var merchant = data.topMerchants[ctx.dataIndex];
+                            if (merchant.deltaPercent === null || merchant.deltaPercent === undefined) return "New in this window";
+                            var sign = merchant.deltaPercent >= 0 ? "+" : "";
+                            return sign + merchant.deltaPercent.toFixed(0) + "% vs. previous 6 months";
+                        }
+                    }
+                }
+            },
             scales: {
                 x: { beginAtZero: true, ticks: { callback: currency } },
                 y: { grid: { display: false } }

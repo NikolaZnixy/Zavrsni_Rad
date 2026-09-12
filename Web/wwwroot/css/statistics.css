@@ -13,17 +13,12 @@
   margin: 0;
 }
 
-.stats-account-form {
+.stats-account-name {
   display: inline-flex;
-}
-
-.stats-account-select {
-  background-color: var(--app-surface-hover);
-  color: var(--app-text);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--app-glass-text-muted);
 }
 
 .stats-empty-state {
@@ -82,4 +77,40 @@
 
 .chart-card-canvas-wrap.is-tall {
   height: 340px;
+}
+
+/* Categorization-completeness caveat banner and the "biggest mover" insight callout, both shown
+   above the charts. */
+
+.stats-banner,
+.stats-insight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--app-glass-text);
+  background-color: var(--app-glass-bg);
+  backdrop-filter: var(--app-glass-blur);
+  -webkit-backdrop-filter: var(--app-glass-blur);
+  box-shadow: var(--app-glass-edge);
+}
+
+.stats-banner i {
+  color: var(--app-accent-green);
+}
+
+.stats-banner .btn-pill {
+  margin-left: auto;
+}
+
+.stats-insight-up i {
+  color: #ff6b6b;
+}
+
+.stats-insight-down i {
+  color: #51cf66;
 }

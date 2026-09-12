@@ -15,11 +15,13 @@ namespace Web.Areas.Identity.Pages.Account
     {
         private readonly SignInManager<AppUser> _signInManager;
         private readonly ILogger<LoginModel> _logger;
+        private readonly Data.Model.Interfaces.IActivityLogger _activityLogger;
 
-        public LoginModel(SignInManager<AppUser> signInManager, ILogger<LoginModel> logger)
+        public LoginModel(SignInManager<AppUser> signInManager, ILogger<LoginModel> logger, Data.Model.Interfaces.IActivityLogger activityLogger)
         {
             _signInManager = signInManager;
             _logger = logger;
+            _activityLogger = activityLogger;
         }
 
         /// <summary>
@@ -109,19 +111,23 @@ namespace Web.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
+                    await _activityLogger.LogAsync("Auth", "SignIn", $"{Input.Email} signed in.");
                     return LocalRedirect(returnUrl);
                 }
                 if (result.RequiresTwoFactor)
                 {
+                    await _activityLogger.LogAsync("Auth", "SignInTwoFactor", $"{Input.Email} needs two-factor confirmation.");
                     return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
                 }
                 if (result.IsLockedOut)
                 {
                     _logger.LogWarning("User account locked out.");
+                    await _activityLogger.LogAsync("Auth", "SignInLockedOut", $"{Input.Email} is locked out.", Data.Model.ActivityLogLevel.Warning);
                     return RedirectToPage("./Lockout");
                 }
                 else
                 {
+                    await _activityLogger.LogAsync("Auth", "SignInFailed", $"Failed sign-in attempt for {Input.Email}.", Data.Model.ActivityLogLevel.Warning);
                     ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                     return Page();
                 }

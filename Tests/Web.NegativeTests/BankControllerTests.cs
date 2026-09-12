@@ -23,7 +23,7 @@ namespace Web.NegativeTests
             var env = new Mock<IWebHostEnvironment>();
             env.SetupGet(e => e.WebRootPath).Returns(AppContext.BaseDirectory);
 
-            var controller = new BankController(bank, categorizationService, db, MockUserManager.Create(), env.Object)
+            var controller = new BankController(bank, categorizationService, db, MockUserManager.Create(), env.Object, Mock.Of<IActivityLogger>())
             {
                 ControllerContext = new ControllerContext
                 {

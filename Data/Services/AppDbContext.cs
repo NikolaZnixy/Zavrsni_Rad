@@ -10,6 +10,7 @@ namespace Data.Services
         public DbSet<LinkedBankAccount> LinkedBankAccounts { get; set; } = null!;
         public DbSet<BankAccountTransaction> BankAccountTransactions { get; set; } = null!;
         public DbSet<TransactionCategory> TransactionCategories { get; set; } = null!;
+        public DbSet<ActivityLogEntry> ActivityLogEntries { get; set; } = null!;
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
@@ -28,6 +29,9 @@ namespace Data.Services
                 .WithMany(c => c.Transactions)
                 .HasForeignKey(t => t.TransactionCategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ActivityLogEntry>()
+                .HasIndex(e => e.Timestamp);
 
             modelBuilder.Entity<TransactionCategory>().HasData(
                 new TransactionCategory { Id = TransactionCategorySeedIds.Car, Name = "car" },

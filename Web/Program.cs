@@ -43,6 +43,8 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseMiddleware<Web.Services.ActivityLoggingMiddleware>();
+
 app.MapRazorPages();
 app.MapControllerRoute(
     name: "default",

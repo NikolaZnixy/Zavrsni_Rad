@@ -138,9 +138,12 @@
 .login-links a {
   color: var(--app-glass-link);
   text-decoration: none;
+  font-weight: 600;
+  transition: color .15s ease;
 }
 
 .login-links a:hover {
+  color: var(--app-accent-green-strong);
   text-decoration: underline;
 }
 
